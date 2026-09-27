@@ -1364,6 +1364,7 @@ Watch mode (`--watch`) keeps the process running regardless of comparison verdic
 
 More detailed guides live in the [docs](docs/) folder. See the [Documentation Index](docs/README.md) for a complete listing.
 
+- [Glossary](docs/glossary.md): definitions of core terms used in reports and configuration (finding, category, axis, verdict, suppression, cascade, etc.)
 - [Which subcommand do I want?](docs/subcommand-guide.md): a task-oriented guide mapping common goals to the right subcommand.
 - [Choosing an Input Source](docs/choosing-an-input-source.md): comparison of local file, stdin, RPC, HTTPS, and OCI input sources and when to use each.
 - [Documentation](docs/documentation.md): full explanation of how the analysis pipeline works, severity levels, cascading layout breaks, and CI integration.

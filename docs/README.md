@@ -4,6 +4,7 @@ This folder contains comprehensive guides for using Soroban Upgrade Safeguard. S
 
 ## Getting Started
 
+- [**glossary.md**](glossary.md) — Definitions of core terms used in reports and configuration (finding, category, axis, verdict, suppression, cascade, etc.)
 - [**documentation.md**](documentation.md) — Full explanation of how the analysis pipeline works, severity levels, cascading layout breaks, and CI integration
 - [**subcommand-guide.md**](subcommand-guide.md) — Task-oriented guide mapping common goals to the right subcommand
 - [**choosing-an-input-source.md**](choosing-an-input-source.md) — Comparison of local file, stdin, RPC, HTTPS, and OCI input sources and when to use each
