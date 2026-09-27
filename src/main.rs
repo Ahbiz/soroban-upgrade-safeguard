@@ -390,7 +390,8 @@ enum RenderFormat {
                       soroban-upgrade-safeguard init [OPTIONS]\n       \
                       soroban-upgrade-safeguard stream [OPTIONS]\n       \
                       soroban-upgrade-safeguard preflight --rpc-url <URL> [OPTIONS]\n       \
-                      soroban-upgrade-safeguard categories [OPTIONS]",
+                      soroban-upgrade-safeguard categories [OPTIONS]\n       \
+                      soroban-upgrade-safeguard doctor [OPTIONS]",
     args_conflicts_with_subcommands = true,
     subcommand_negates_reqs = true,
 )]
@@ -778,6 +779,8 @@ enum Command {
     Preflight(PreflightArgs),
     /// List every finding category with its severity and remediation guidance
     Categories(CategoriesArgs),
+    /// Report environment, version, enabled features, cache locations, and resolved configuration
+    Doctor(DoctorArgs),
 }
 
 /// `lint`: validate a single decoded contract spec (and optional storage
@@ -1100,6 +1103,44 @@ struct CategoriesArgs {
     no_color: bool,
 }
 
+/// `doctor`: report environment, version, enabled features, cache locations,
+/// and resolved configuration for diagnosing misbehaving runs and assembling
+/// bug reports.
+#[derive(ClapArgs, Debug)]
+struct DoctorArgs {
+    /// Output format for the diagnostic report.
+    #[arg(long, value_enum, ignore_case = true, default_value_t = DoctorFormat::Text)]
+    format: DoctorFormat,
+
+    /// Path to a suppression config. Falls back to SOROBAN_SAFEGUARD_CONFIG,
+    /// then to `.safeguard.toml` in the current directory if present, then
+    /// (with --search-parent-config) an ancestor directory.
+    #[arg(long, value_name = "CONFIG")]
+    config: Option<PathBuf>,
+
+    /// Do not load a suppression config automatically.
+    #[arg(long, conflicts_with = "config")]
+    no_config: bool,
+
+    /// Search ancestor directories for `.safeguard.toml` when nothing more
+    /// specific resolved one.
+    #[arg(long, conflicts_with = "no_config")]
+    search_parent_config: bool,
+
+    /// Do not color output.
+    #[arg(long)]
+    no_color: bool,
+}
+
+/// Output format for the `doctor` subcommand.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Default)]
+enum DoctorFormat {
+    #[default]
+    Text,
+    Json,
+}
+
+
 fn rpc_config(url: &str, headers: &[String]) -> Result<RpcClientConfig> {
     let mut config = RpcClientConfig::new(url.to_string()).map_err(|e| anyhow::anyhow!(e))?;
     for spec in headers {
@@ -1366,6 +1407,150 @@ fn run_categories(args: &CategoriesArgs) -> Result<()> {
     }
     Ok(())
 }
+
+/// `doctor`: report environment, version, enabled features, cache locations,
+/// and resolved configuration for debugging and assembling bug reports.
+fn run_doctor(args: &DoctorArgs) -> Result<()> {
+    if should_disable_color(
+        args.no_color,
+        ColorMode::Auto,
+        std::env::var_os("NO_COLOR").is_some(),
+        std::io::stdout().is_terminal(),
+    ) {
+        colored::control::set_override(false);
+    }
+
+    let (suppressions, config_source) =
+        load_suppressions(args.no_config, args.config.as_deref(), args.search_parent_config)?;
+
+    let version = env!("CARGO_PKG_VERSION");
+    
+    let enabled_features = {
+        let mut features = Vec::new();
+        if cfg!(feature = "unstable") {
+            features.push("unstable");
+        }
+        if cfg!(feature = "watch") {
+            features.push("watch");
+        }
+        features
+    };
+
+    let remote_cache_dir = remote::default_cache_dir();
+    let oci_cache_dir = oci::default_cache_dir();
+    let metadata_cache_dir = soroban_upgrade_safeguard::metadata_cache::default_cache_dir();
+
+    match args.format {
+        DoctorFormat::Json => {
+            let mut root = serde_json::Map::new();
+
+            root.insert("version".to_string(), serde_json::json!(version));
+            root.insert(
+                "enabled_features".to_string(),
+                serde_json::json!(enabled_features),
+            );
+
+            let mut cache = serde_json::Map::new();
+            cache.insert(
+                "remote_cache_dir".to_string(),
+                serde_json::json!(remote_cache_dir.display().to_string()),
+            );
+            cache.insert(
+                "oci_cache_dir".to_string(),
+                serde_json::json!(oci_cache_dir.display().to_string()),
+            );
+            cache.insert(
+                "metadata_cache_dir".to_string(),
+                serde_json::json!(metadata_cache_dir.display().to_string()),
+            );
+            root.insert("cache".to_string(), serde_json::Value::Object(cache));
+
+            let mut config = serde_json::Map::new();
+            config.insert(
+                "config_file".to_string(),
+                match &config_source {
+                    Some((path, source)) => {
+                        serde_json::json!({
+                            "path": path.display().to_string(),
+                            "source": source.to_string()
+                        })
+                    }
+                    None => serde_json::json!({
+                        "path": null,
+                        "source": "default (none found)"
+                    }),
+                },
+            );
+            config.insert(
+                "suppression_count".to_string(),
+                serde_json::json!(suppressions.count()),
+            );
+            root.insert(
+                "configuration".to_string(),
+                serde_json::Value::Object(config),
+            );
+
+            println!("{}", serde_json::to_string_pretty(&root)?);
+        }
+        DoctorFormat::Text => {
+            println!("{}", "Soroban Upgrade Safeguard - Environment Report".bold());
+            println!();
+
+            println!("{}", "Version:".bold());
+            println!("  {}", version);
+            println!();
+
+            println!("{}", "Enabled Features:".bold());
+            if enabled_features.is_empty() {
+                println!("  (none)");
+            } else {
+                for feature in &enabled_features {
+                    println!("  {}", feature);
+                }
+            }
+            println!();
+
+            println!("{}", "Cache Directories:".bold());
+            println!("  Remote (https://): {}", remote_cache_dir.display());
+            println!("  OCI (oci://):      {}", oci_cache_dir.display());
+            println!("  Metadata:          {}", metadata_cache_dir.display());
+            println!();
+
+            println!("{}", "Configuration:".bold());
+            match &config_source {
+                Some((path, source)) => {
+                    println!("  Config file: {}", path.display());
+                    println!("  Source:      {}", source);
+                }
+                None => {
+                    println!("  Config file: (none found)");
+                    println!("  Source:      default");
+                }
+            }
+            println!("  Suppressions loaded: {}", suppressions.count());
+            println!();
+
+            println!("{}", "Environment:".bold());
+            if let Some(val) = std::env::var_os(CONFIG_PATH_ENV_VAR) {
+                println!("  {}={}", CONFIG_PATH_ENV_VAR, val.to_string_lossy());
+            } else {
+                println!("  {} (not set)", CONFIG_PATH_ENV_VAR);
+            }
+            if let Some(val) = std::env::var_os(remote::CACHE_DIR_ENV_VAR) {
+                println!("  {}={}", remote::CACHE_DIR_ENV_VAR, val.to_string_lossy());
+            }
+            if let Some(val) = std::env::var_os(oci::CACHE_DIR_ENV_VAR) {
+                println!("  {}={}", oci::CACHE_DIR_ENV_VAR, val.to_string_lossy());
+            }
+            if let Some(val) = std::env::var_os("NO_COLOR") {
+                println!("  NO_COLOR={}", val.to_string_lossy());
+            }
+        }
+    }
+
+    Ok(())
+}
+
 
 fn render_categories_text() -> String {
     const WIDTH: usize = 80;
@@ -2166,6 +2351,7 @@ fn main() -> Result<()> {
         Some(Command::Lint(lint_args)) => return run_lint(lint_args),
         Some(Command::Preflight(preflight_args)) => return run_preflight(preflight_args),
         Some(Command::Categories(categories_args)) => return run_categories(categories_args),
+        Some(Command::Doctor(doctor_args)) => return run_doctor(doctor_args),
         None => {}
     }
 
