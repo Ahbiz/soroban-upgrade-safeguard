@@ -6,7 +6,6 @@ use colored::Colorize;
 use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
 use std::path::{Component, Path, PathBuf};
-#[allow(unused_imports)]
 use std::time::Duration;
 
 use soroban_upgrade_safeguard::{
