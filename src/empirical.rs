@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use std::collections::HashSet;
 use stellar_xdr::curr::{ContractDataEntry, ScSpecTypeDef, ScSpecUdtUnionCaseV0, ScVal};
 

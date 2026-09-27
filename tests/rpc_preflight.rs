@@ -322,3 +322,37 @@ fn preflight_cli_subcommand_exits_nonzero_on_auth_failure() {
     let stdout = String::from_utf8(output.stdout).expect("stdout not UTF-8");
     assert!(stdout.contains("FAIL"));
 }
+
+/// `--rpc-header NAME=ENV_VAR` reads the secret from the named environment
+/// variable at resolution time. Header resolution happens before any network
+/// I/O (see `preflight::run_preflight_with_timeout`), so an unset variable
+/// must fail clearly — naming the variable — without ever contacting the
+/// (bogus, unreachable) RPC endpoint.
+#[test]
+fn preflight_cli_subcommand_fails_clearly_when_rpc_header_env_var_is_unset() {
+    const UNSET_VAR: &str = "SOROBAN_SAFEGUARD_TEST_UNSET_RPC_HEADER_SECRET_655";
+
+    let output = Command::new(env!("CARGO_BIN_EXE_soroban-upgrade-safeguard"))
+        .args([
+            "preflight",
+            "--rpc-url",
+            "http://127.0.0.1:1",
+            "--rpc-header",
+            &format!("X-Api-Key={UNSET_VAR}"),
+        ])
+        .env_remove(UNSET_VAR)
+        .output()
+        .expect("failed to run binary");
+
+    assert_ne!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout).expect("stdout not UTF-8");
+    assert!(stdout.contains("FAIL"), "stdout: {stdout}");
+    assert!(
+        stdout.contains(UNSET_VAR),
+        "error must name the unset variable, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("is not set"),
+        "error must state the variable is unset, got: {stdout}"
+    );
+}

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! The report model, and the renderers that operate on it.
 //!
 //! The three output formats used to be produced only from a live

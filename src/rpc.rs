@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Authenticated RPC client configuration.
 //!
 //! Header values are intentionally represented by environment-variable names

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Composable batch manifests: includes, shared defaults, and per-pair overrides.
 //!
 //! A batch manifest lists the contract pairs a run compares. Historically it was

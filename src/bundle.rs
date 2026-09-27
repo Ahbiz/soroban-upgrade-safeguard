@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Write;

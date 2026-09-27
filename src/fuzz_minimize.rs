@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Corpus management: minimize a failing fuzz input and promote it to a
 //! deterministic regression fixture.
 //!

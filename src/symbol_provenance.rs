@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Optional Rust source-symbol provenance for WASM findings.
 //!
 //! Release WASM artifacts sometimes embed debug information (DWARF or the

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Migration framework for saved JSON reports.
 //!
 //! [`crate::render::RenderableReport`] is what `--format json` writes and what

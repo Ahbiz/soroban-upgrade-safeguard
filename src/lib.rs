@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! # Soroban Upgrade Safeguard
 //!
 //! Library for analyzing and validating Soroban smart-contract upgrades on the

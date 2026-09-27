@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! JSON Lines (JSONL) streaming batch protocol.
 //!
 //! Reads one versioned JSON job per line from standard input and writes one

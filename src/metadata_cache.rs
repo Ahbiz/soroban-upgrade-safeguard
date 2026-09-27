@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Content-addressed cache for parsed WASM metadata and normalized specs.
 //!
 //! # Purpose

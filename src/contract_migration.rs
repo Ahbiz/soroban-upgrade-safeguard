@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Declared data migrations, and verification that they actually cover the
 //! breaking changes they claim.
 //!

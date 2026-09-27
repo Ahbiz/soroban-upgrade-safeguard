@@ -27,6 +27,44 @@ This compares the old build (`v1.wasm`) against the new build (`v2.wasm`) and re
 - [Usage](#usage) for detailed command-line options, strict mode, and output formats
 - [Choosing an Input Source](docs/choosing-an-input-source.md) for RPC, HTTPS, and OCI input sources
 - [Documentation](docs/documentation.md) for how the analysis works
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Subcommands](#subcommands)
+  - [Strict mode](#strict-mode)
+  - [Remediation guidance](#remediation-guidance)
+  - [ASCII output](#ascii-output)
+  - [Controlling color output](#controlling-color-output)
+  - [Comparing against a deployed contract (RPC baseline)](#comparing-against-a-deployed-contract-rpc-baseline)
+  - [Validating against captured storage entries](#validating-against-captured-storage-entries)
+  - [Inspecting a single build](#inspecting-a-single-build)
+  - [Pinning an interface with a lockfile](#pinning-an-interface-with-a-lockfile)
+  - [Re-rendering a saved report](#re-rendering-a-saved-report)
+  - [Upgrading a saved report](#upgrading-a-saved-report)
+  - [Signing and verifying reports](#signing-and-verifying-reports)
+  - [Validating a single contract spec (lint)](#validating-a-single-contract-spec-lint)
+  - [Listing finding categories](#listing-finding-categories)
+  - [Checking RPC connectivity (preflight)](#checking-rpc-connectivity-preflight)
+  - [Symlinked inputs](#symlinked-inputs)
+  - [Fetching inputs over HTTPS](#fetching-inputs-over-https)
+  - [Validating against historical versions (lineage tracking)](#validating-against-historical-versions-lineage-tracking)
+  - [Suppressing known breaking changes](#suppressing-known-breaking-changes)
+  - [Output format](#output-format)
+  - [Wrapping text output](#wrapping-text-output)
+  - [Multiple output formats](#multiple-output-formats)
+  - [Quiet output](#quiet-output)
+  - [Watch mode](#watch-mode)
+  - [Comparing two directories of builds](#comparing-two-directories-of-builds)
+  - [Comparing many contracts at once](#comparing-many-contracts-at-once)
+  - [Deterministic output for snapshot testing](#deterministic-output-for-snapshot-testing)
+  - [GitHub Action](#github-action)
+- [How it Works](#how-it-works)
+- [Severity Levels](#severity-levels)
+- [Exit Codes](#exit-codes)
+- [Documentation](#documentation)
+- [License](#license)
 
 ## Features
 
@@ -446,6 +484,9 @@ soroban-upgrade-safeguard lint ./wasm/v1.wasm --storage-schema ./schemas/v1.json
 Exit codes differ from the comparison command:
 
 - `0`: no findings, or only warning/info findings without `--strict`.
+- `1`: not a lint finding — a configuration or usage error (invalid flags, an
+  unreadable input, a malformed `--storage-schema`, or an RPC fetch failure),
+  same meaning as the comparison command's `1`.
 - `2`: at least one error-severity finding (the artifact is structurally
   invalid).
 - `3`: only warning/info findings, but `--strict` was passed.
@@ -1398,6 +1439,7 @@ More detailed guides live in the [docs](docs/) folder. See the [Documentation In
 - [Signed Attestations](docs/attestations.md): DSSE signing, the in-toto predicate, offline verification, and security guidance.
 - [RPC Security Checklist](docs/rpc-security-checklist.md): operational checklist for endpoint trust, HTTPS, expected-hash pinning, credentials, and report retention when fetching a baseline over RPC.
 - [Remote HTTPS Inputs](docs/remote-https-inputs.md): digest-pinned `https://` inputs, fetch limits, caching, and error messages.
+- [Environment Variables](docs/environment-variables.md): every environment variable the CLI reads, its precedence against the equivalent flag, and how to relocate caches in a sandboxed or ephemeral environment.
 - [Storage Schema Cookbook](docs/storage-schema-cookbook.md): worked examples for declaring storage schemas — common key enums, nested values, optional fields, and partial coverage.
 - [Lineage Tracking Walkthrough](docs/lineage-walkthrough.md): a worked example of recording historical versions, validating a candidate against them, retiring versions, and capping the number of live versions with `--lineage-store`.
 - [Troubleshooting Loader Failures](docs/loader-troubleshooting.md): what to do about malformed WASM, missing custom sections, unsupported formats, and resource-limit rejections.
