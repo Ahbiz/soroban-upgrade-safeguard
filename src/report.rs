@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use crate::contract_migration::{FindingCoverage, MigrationDiagnostic, MigrationStatus};
 use crate::diff::{DiffReport, Finding, Severity};
 use crate::interface_hash::InterfaceHash;

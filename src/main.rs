@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use anyhow::{Context, Result};
 use clap::{Args as ClapArgs, Parser, Subcommand, ValueEnum};
 use colored::Colorize;

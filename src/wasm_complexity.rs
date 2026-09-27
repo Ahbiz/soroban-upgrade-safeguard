@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Static WASM instruction and complexity delta reporting.
 //!
 //! This module profiles the *code section* of a WebAssembly module and

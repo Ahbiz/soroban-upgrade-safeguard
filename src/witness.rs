@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Serialization witness traces for breaking findings.
 //!
 //! A finding often identifies a changed type or field but leaves reviewers to

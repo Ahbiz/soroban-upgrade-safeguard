@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Central resource policy for bounding untrusted XDR input.
 //!
 //! The safeguard runs as a CI gate and, in RPC mode, decodes WASM fetched for an

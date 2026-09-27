@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use crate::diff::Severity;
 
 /// Every finding category emitted by the comparison analysis.

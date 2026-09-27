@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Suppression configuration for known, intentional breaking changes.
 //!
 //! Some breaking changes are deliberate and accepted as-is. A suppression

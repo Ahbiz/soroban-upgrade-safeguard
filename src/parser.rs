@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use std::io::Cursor;
 use stellar_xdr::curr::{Limited, Limits, ReadXdr, ScEnvMetaEntry, ScSpecEntry};
 use wasmparser::{CompositeType, Parser, Payload, TypeRef, ValType};

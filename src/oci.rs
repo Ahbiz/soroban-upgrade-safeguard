@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! OCI registry input resolver for WASM binaries and extracted-spec artifacts.
 //!
 //! Teams that publish contract artifacts to OCI-compatible registries
