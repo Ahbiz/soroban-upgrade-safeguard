@@ -4,6 +4,29 @@
 
 A powerful CLI tool to analyze and validate Soroban smart contract upgrades on the Stellar network. It detects breaking changes in storage layout, function signatures, and event schemas before you deploy.
 
+## Quick Start
+
+Get up and running in seconds:
+
+### Install
+
+```bash
+cargo install --path .
+```
+
+### Compare two builds
+
+```bash
+soroban-upgrade-safeguard ./wasm/v1.wasm ./wasm/v2.wasm
+```
+
+This compares the old build (`v1.wasm`) against the new build (`v2.wasm`) and reports any breaking changes. The command exits with a non-zero code if critical issues are found, making it perfect for CI/CD pipelines.
+
+**See also:**
+- [Installation](#installation) for alternative install methods including Docker
+- [Usage](#usage) for detailed command-line options, strict mode, and output formats
+- [Choosing an Input Source](docs/choosing-an-input-source.md) for RPC, HTTPS, and OCI input sources
+- [Documentation](docs/documentation.md) for how the analysis works
 ## Table of Contents
 
 - [Features](#features)
@@ -1404,9 +1427,11 @@ Watch mode (`--watch`) keeps the process running regardless of comparison verdic
 
 ## Documentation
 
-More detailed guides live in the [docs](docs/) folder:
+More detailed guides live in the [docs](docs/) folder. See the [Documentation Index](docs/README.md) for a complete listing.
 
+- [Glossary](docs/glossary.md): definitions of core terms used in reports and configuration (finding, category, axis, verdict, suppression, cascade, etc.)
 - [Which subcommand do I want?](docs/subcommand-guide.md): a task-oriented guide mapping common goals to the right subcommand.
+- [Choosing an Input Source](docs/choosing-an-input-source.md): comparison of local file, stdin, RPC, HTTPS, and OCI input sources and when to use each.
 - [Documentation](docs/documentation.md): full explanation of how the analysis pipeline works, severity levels, cascading layout breaks, and CI integration.
 - [Finding Category Reference](docs/finding-categories.md): every category emitted by the tool, with severity, trigger, and remediation guidance — the exact strings to use in suppression rules.
 - [Batch Manifests](docs/batch_manifests.md): the manifest schema, composing manifests with `include`, shared `[defaults]`, per-pair overrides, precedence, and resolution provenance.
