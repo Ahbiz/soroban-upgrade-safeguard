@@ -1362,7 +1362,7 @@ Watch mode (`--watch`) keeps the process running regardless of comparison verdic
 
 ## Documentation
 
-More detailed guides live in the [docs](docs/) folder:
+More detailed guides live in the [docs](docs/) folder. See the [Documentation Index](docs/README.md) for a complete listing.
 
 - [Which subcommand do I want?](docs/subcommand-guide.md): a task-oriented guide mapping common goals to the right subcommand.
 - [Choosing an Input Source](docs/choosing-an-input-source.md): comparison of local file, stdin, RPC, HTTPS, and OCI input sources and when to use each.
