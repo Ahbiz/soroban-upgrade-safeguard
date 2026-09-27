@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Directional Soroban call-ABI compatibility analysis.
 //!
 //! Call compatibility is a value-flow question. Arguments are encoded by a

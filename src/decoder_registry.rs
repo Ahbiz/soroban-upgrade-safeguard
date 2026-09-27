@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Protocol-versioned contract-spec decoder registry.
 //!
 //! The Soroban XDR spec format is versioned by a packed `u64` interface

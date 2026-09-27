@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Incremental batch watch mode: re-run only the pairs a file-system change
 //! actually affects, instead of recomputing every pair on every event.
 //!

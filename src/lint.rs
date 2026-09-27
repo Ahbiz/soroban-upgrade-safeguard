@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Single-artifact contract spec lint: graph and schema integrity checks.
 //!
 //! [`crate::diff`] validates that two builds are *compatible with each

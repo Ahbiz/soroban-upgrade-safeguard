@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Per-axis and per-rule compatibility budgets.
 //!
 //! Axis gating ([`crate::suppression::PolicyConfig`]) and `--strict` decide

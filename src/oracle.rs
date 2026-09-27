@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! Differential oracle adapter for comparing safeguard's type-interpretation
 //! with the reference Soroban XDR decoder.
 //!

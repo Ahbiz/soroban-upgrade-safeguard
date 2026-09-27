@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! HTTPS input resolver for WASM binaries and JSON/TOML spec artifacts.
 //!
 //! Release pipelines frequently publish immutable build artifacts (a compiled
