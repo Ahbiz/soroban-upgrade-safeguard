@@ -1419,6 +1419,7 @@ More detailed guides live in the [docs](docs/) folder:
 - [Lineage Tracking Walkthrough](docs/lineage-walkthrough.md): a worked example of recording historical versions, validating a candidate against them, retiring versions, and capping the number of live versions with `--lineage-store`.
 - [Troubleshooting Loader Failures](docs/loader-troubleshooting.md): what to do about malformed WASM, missing custom sections, unsupported formats, and resource-limit rejections.
 - [Report Provenance Fields](docs/report-provenance.md): every field in the `provenance` block of a saved JSON report, with its type, meaning, and notes on which fields are omitted by `--no-timestamp` and `--redact-paths`.
+- [Multi-Axis Compatibility](docs/multi_axis_compatibility.md): covers the separate storage, call-ABI, and event-indexer compatibility axes and how findings are classified across each.
 
 ## License
 
