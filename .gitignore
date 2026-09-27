@@ -1,2 +1,9 @@
 # Ignore all Cargo build output, including nested fixture projects
 **/target/
+
+# Editor backup and swap files
+*.bak
+*.orig
+*.swp
+*.swo
+*~
