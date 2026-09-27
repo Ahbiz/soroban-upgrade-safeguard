@@ -4,6 +4,30 @@
 
 A powerful CLI tool to analyze and validate Soroban smart contract upgrades on the Stellar network. It detects breaking changes in storage layout, function signatures, and event schemas before you deploy.
 
+## Quick Start
+
+Get up and running in seconds:
+
+### Install
+
+```bash
+cargo install --path .
+```
+
+### Compare two builds
+
+```bash
+soroban-upgrade-safeguard ./wasm/v1.wasm ./wasm/v2.wasm
+```
+
+This compares the old build (`v1.wasm`) against the new build (`v2.wasm`) and reports any breaking changes. The command exits with a non-zero code if critical issues are found, making it perfect for CI/CD pipelines.
+
+**See also:**
+- [Installation](#installation) for alternative install methods including Docker
+- [Usage](#usage) for detailed command-line options, strict mode, and output formats
+- [Choosing an Input Source](docs/choosing-an-input-source.md) for RPC, HTTPS, and OCI input sources
+- [Documentation](docs/documentation.md) for how the analysis works
+
 ## Features
 
 - **Storage Layout Protection**: Detects field removals, reorderings, and type changes in structs and enums that would corrupt on-chain data.
