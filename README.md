@@ -1422,6 +1422,7 @@ More detailed guides live in the [docs](docs/) folder:
 - [Multi-Axis Compatibility](docs/multi_axis_compatibility.md): covers the separate storage, call-ABI, and event-indexer compatibility axes and how findings are classified across each.
 - [Compatibility Budgets](docs/compatibility_budgets.md): per-axis and per-rule compatibility budgets, how they are declared, and how budget exhaustion affects the run verdict.
 - [Named Policy Profiles](docs/named_policy_profiles.md): selecting named policy profiles from configuration and the CLI to apply pre-defined sets of compatibility rules.
+- [Configuration Resolution](docs/config-resolution.md): the precedence order for resolving a suppression config — CLI flag, environment variable, and default file discovery.
 
 ## License
 
