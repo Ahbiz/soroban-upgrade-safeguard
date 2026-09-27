@@ -865,24 +865,8 @@ impl BuildMetrics {
     }
 }
 
-#[allow(dead_code)]
-fn is_zero(n: &usize) -> bool {
-    *n == 0
-}
-
 /// A machine-readable view of a SafetyReport for JSON output.
 pub type SafetyReportJson = RenderableReport;
-
-/// Format a contract identity label from optional name and version strings.
-#[allow(dead_code)]
-fn contract_identity_label(name: Option<&str>, version: Option<&str>) -> String {
-    match (name, version) {
-        (Some(n), Some(v)) => format!("{} v{}", n, v),
-        (Some(n), None) => n.to_string(),
-        (None, Some(v)) => format!("v{}", v),
-        (None, None) => "<unknown>".to_string(),
-    }
-}
 
 pub fn asciify_markers(text: &str) -> String {
     text.replace("🔕 ", "")
