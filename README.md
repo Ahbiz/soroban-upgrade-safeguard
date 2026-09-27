@@ -4,6 +4,35 @@
 
 A powerful CLI tool to analyze and validate Soroban smart contract upgrades on the Stellar network. It detects breaking changes in storage layout, function signatures, and event schemas before you deploy.
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Subcommands](#subcommands)
+  - [Strict mode](#strict-mode)
+  - [Remediation guidance](#remediation-guidance)
+  - [ASCII output](#ascii-output)
+  - [Controlling color output](#controlling-color-output)
+  - [Comparing against a deployed contract (RPC baseline)](#comparing-against-a-deployed-contract-rpc-baseline)
+  - [Validating against captured storage entries](#validating-against-captured-storage-entries)
+  - [Inspecting a single build](#inspecting-a-single-build)
+  - [Pinning an interface with a lockfile](#pinning-an-interface-with-a-lockfile)
+  - [Re-rendering a saved report](#re-rendering-a-saved-report)
+  - [Upgrading a saved report](#upgrading-a-saved-report)
+  - [Signing and verifying reports](#signing-and-verifying-reports)
+  - [Validating a single contract spec (lint)](#validating-a-single-contract-spec-lint)
+  - [Listing finding categories](#listing-finding-categories)
+  - [Checking RPC connectivity (preflight)](#checking-rpc-connectivity-preflight)
+  - [Symlinked inputs](#symlinked-inputs)
+  - [Fetching inputs over HTTPS](#fetching-inputs-over-https)
+  - [Validating against historical versions (lineage tracking)](#validating-against-historical-versions-lineage-tracking)
+- [How it Works](#how-it-works)
+- [Severity Levels](#severity-levels)
+- [Exit Codes](#exit-codes)
+- [Documentation](#documentation)
+- [License](#license)
+
 ## Features
 
 - **Storage Layout Protection**: Detects field removals, reorderings, and type changes in structs and enums that would corrupt on-chain data.
