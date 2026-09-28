@@ -63,7 +63,7 @@ fn run_manifest(manifest: &Path, extra: &[&str]) -> Run {
 fn explain_manifest_exits_without_comparing() {
     let dir = temp_dir("explain-no-compare");
     // Do NOT stage WASM files - resolution must not load them
-    
+
     let manifest_content = format!(
         r#"
 [[pairs]]

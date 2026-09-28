@@ -748,7 +748,9 @@ fn oci_fetch_config(args: &Args) -> OciFetchConfig {
 }
 
 /// Build the metadata-cache configuration from the top-level CLI flags.
-fn metadata_cache_config(args: &Args) -> soroban_upgrade_safeguard::metadata_cache::MetadataCacheConfig {
+fn metadata_cache_config(
+    args: &Args,
+) -> soroban_upgrade_safeguard::metadata_cache::MetadataCacheConfig {
     soroban_upgrade_safeguard::metadata_cache::MetadataCacheConfig {
         no_cache: args.no_metadata_cache,
         cache_dir: args.metadata_cache_dir.clone(),
@@ -1141,7 +1143,6 @@ enum DoctorFormat {
     Json,
 }
 
-
 fn rpc_config(url: &str, headers: &[String]) -> Result<RpcClientConfig> {
     let mut config = RpcClientConfig::new(url.to_string()).map_err(|e| anyhow::anyhow!(e))?;
     for spec in headers {
@@ -1421,11 +1422,14 @@ fn run_doctor(args: &DoctorArgs) -> Result<()> {
         colored::control::set_override(false);
     }
 
-    let (suppressions, config_source) =
-        load_suppressions(args.no_config, args.config.as_deref(), args.search_parent_config)?;
+    let (suppressions, config_source) = load_suppressions(
+        args.no_config,
+        args.config.as_deref(),
+        args.search_parent_config,
+    )?;
 
     let version = env!("CARGO_PKG_VERSION");
-    
+
     let enabled_features = {
         let mut features = Vec::new();
         if cfg!(feature = "unstable") {
@@ -1494,7 +1498,10 @@ fn run_doctor(args: &DoctorArgs) -> Result<()> {
             println!("{}", serde_json::to_string_pretty(&root)?);
         }
         DoctorFormat::Text => {
-            println!("{}", "Soroban Upgrade Safeguard - Environment Report".bold());
+            println!(
+                "{}",
+                "Soroban Upgrade Safeguard - Environment Report".bold()
+            );
             println!();
 
             println!("{}", "Version:".bold());
@@ -1551,7 +1558,6 @@ fn run_doctor(args: &DoctorArgs) -> Result<()> {
 
     Ok(())
 }
-
 
 fn render_categories_text() -> String {
     const WIDTH: usize = 80;

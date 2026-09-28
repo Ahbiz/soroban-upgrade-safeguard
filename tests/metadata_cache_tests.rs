@@ -7,12 +7,12 @@
 
 use std::path::PathBuf;
 
+use soroban_upgrade_safeguard::loader::sha256_hex;
 use soroban_upgrade_safeguard::metadata_cache::{
     build_entry, clear_cache, default_cache_dir, lookup, store, CacheIdentity, CacheKey,
-    CacheStats, CachedMetadata, MetadataCacheConfig, CACHE_SCHEMA_VERSION, CACHE_DIR_ENV_VAR,
+    CacheStats, CachedMetadata, MetadataCacheConfig, CACHE_DIR_ENV_VAR, CACHE_SCHEMA_VERSION,
     TOOL_VERSION,
 };
-use soroban_upgrade_safeguard::loader::sha256_hex;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -141,7 +141,10 @@ fn metadata_cache_corrupt_entry_is_invalidated() {
     let mut stats = CacheStats::default();
     let result = lookup(&dir, &key, false, &mut stats);
     assert!(!result.is_hit());
-    assert_eq!(stats.invalidations, 1, "corrupt entry must count as invalidation");
+    assert_eq!(
+        stats.invalidations, 1,
+        "corrupt entry must count as invalidation"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -167,7 +170,10 @@ fn metadata_cache_stale_schema_version_is_miss() {
 
     let mut stats = CacheStats::default();
     let result = lookup(&dir, &key, false, &mut stats);
-    assert!(!result.is_hit(), "stale schema version must not produce a hit");
+    assert!(
+        !result.is_hit(),
+        "stale schema version must not produce a hit"
+    );
     // Either miss or invalidation is acceptable (file exists → invalidation).
     assert!(stats.misses + stats.invalidations > 0);
 
@@ -193,7 +199,10 @@ fn metadata_cache_different_tool_version_is_miss() {
 
     let mut stats = CacheStats::default();
     let result = lookup(&dir, &key, false, &mut stats);
-    assert!(!result.is_hit(), "different tool version must not produce a hit");
+    assert!(
+        !result.is_hit(),
+        "different tool version must not produce a hit"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -339,7 +348,10 @@ fn metadata_cache_inspect_empty_dir_returns_empty_vec() {
     let dir = tmp_dir("inspect-empty");
     // Directory does not exist yet — inspect must return empty, not panic.
     let entries = inspect_entries(&dir);
-    assert!(entries.is_empty(), "inspect of missing dir must return empty vec");
+    assert!(
+        entries.is_empty(),
+        "inspect of missing dir must return empty vec"
+    );
 }
 
 #[test]
@@ -497,7 +509,10 @@ fn metadata_cache_shared_across_input_sources() {
     let https_key = CacheKey::new(sha256_hex(b"https_wasm_bytes"), CacheIdentity::default());
     let oci_key = CacheKey::new(sha256_hex(b"oci_wasm_bytes"), CacheIdentity::default());
 
-    fn make_entry(key: &CacheKey, tag: &str) -> soroban_upgrade_safeguard::metadata_cache::CachedMetadata {
+    fn make_entry(
+        key: &CacheKey,
+        tag: &str,
+    ) -> soroban_upgrade_safeguard::metadata_cache::CachedMetadata {
         build_entry(key, "[]".to_string(), None, false, tag.to_string())
     }
 
@@ -506,7 +521,11 @@ fn metadata_cache_shared_across_input_sources() {
     store(&dir, &oci_key, &make_entry(&oci_key, "oci"), false);
 
     let infos = inspect_entries(&dir);
-    assert_eq!(infos.len(), 3, "all three source entries must be in the shared cache");
+    assert_eq!(
+        infos.len(),
+        3,
+        "all three source entries must be in the shared cache"
+    );
 
     let hashes: Vec<String> = infos.iter().map(|i| i.interface_hash.clone()).collect();
     assert!(hashes.contains(&"local".to_string()));

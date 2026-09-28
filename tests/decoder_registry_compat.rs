@@ -76,7 +76,10 @@ fn all_supported_protocol_versions_prerelease_accepted() {
 fn legacy_no_version_accepted() {
     let reg = SpecDecoderRegistry::default();
     let outcome = reg.decode(b"", None);
-    assert!(outcome.is_decoded(), "legacy no-version contract must be accepted");
+    assert!(
+        outcome.is_decoded(),
+        "legacy no-version contract must be accepted"
+    );
     assert!(outcome.is_complete());
 }
 
@@ -235,7 +238,9 @@ fn validate_ownership_accepts_none_for_no_version_decoder() {
 #[test]
 fn registry_never_calls_decoder_for_unowned_version() {
     // A registry with only a p20-specific decoder must not decode p21 data.
-    let mut reg = SpecDecoderRegistry { entries: Vec::new() };
+    let mut reg = SpecDecoderRegistry {
+        entries: Vec::new(),
+    };
     reg.register(DecoderEntry {
         name: "p20-only",
         predicate: VersionPredicate::ExactProtocol(20),
@@ -260,8 +265,7 @@ fn section_meta_version_matches_input() {
         let v = ver(protocol);
         if let DecodeOutcome::Decoded { section_meta, .. } = reg.decode(b"", v) {
             assert_eq!(
-                section_meta.interface_version,
-                v,
+                section_meta.interface_version, v,
                 "section_meta.interface_version must match for protocol {protocol}"
             );
             assert!(
@@ -297,7 +301,9 @@ fn section_meta_decoder_name_for_legacy() {
 
 #[test]
 fn section_meta_version_owned_false_for_any_version_decoder() {
-    let mut reg = SpecDecoderRegistry { entries: Vec::new() };
+    let mut reg = SpecDecoderRegistry {
+        entries: Vec::new(),
+    };
     reg.register(DecoderEntry {
         name: "catch-all",
         predicate: VersionPredicate::AnyVersion,
@@ -367,10 +373,7 @@ fn decode_forward_compat_carries_section_meta() {
     let reg = SpecDecoderRegistry::default();
     let outcome = reg.decode_forward_compat(b"", ver(22));
     if let DecodeOutcome::Decoded { section_meta, .. } = outcome {
-        assert_eq!(
-            section_meta.interface_version,
-            ver(22)
-        );
+        assert_eq!(section_meta.interface_version, ver(22));
     } else {
         panic!("expected Decoded outcome");
     }

@@ -125,8 +125,16 @@ fn map_key_change_emits_key_finding_not_value() {
         .filter(|f| f.category == "Map Value Type Changed")
         .collect();
 
-    assert_eq!(key_findings.len(), 1, "expected exactly one MapKeyTypeChanged");
-    assert_eq!(val_findings.len(), 0, "no MapValueTypeChanged when only key changed");
+    assert_eq!(
+        key_findings.len(),
+        1,
+        "expected exactly one MapKeyTypeChanged"
+    );
+    assert_eq!(
+        val_findings.len(),
+        0,
+        "no MapValueTypeChanged when only key changed"
+    );
     assert_eq!(key_findings[0].target.as_deref(), Some("Store.balances"));
     assert_eq!(key_findings[0].severity, Severity::Critical);
 }
@@ -157,8 +165,16 @@ fn map_value_change_emits_value_finding_not_key() {
         .filter(|f| f.category == "Map Value Type Changed")
         .collect();
 
-    assert_eq!(key_findings.len(), 0, "no MapKeyTypeChanged when only value changed");
-    assert_eq!(val_findings.len(), 1, "expected exactly one MapValueTypeChanged");
+    assert_eq!(
+        key_findings.len(),
+        0,
+        "no MapKeyTypeChanged when only value changed"
+    );
+    assert_eq!(
+        val_findings.len(),
+        1,
+        "expected exactly one MapValueTypeChanged"
+    );
     assert_eq!(val_findings[0].target.as_deref(), Some("Store.ledger"));
     assert_eq!(val_findings[0].severity, Severity::Critical);
 }
@@ -193,7 +209,10 @@ fn both_key_and_value_changed_emits_two_findings() {
     assert_eq!(val_count, 1);
     // Generic outer finding must be suppressed
     assert!(
-        !report.findings.iter().any(|f| f.category == "Struct Field Type Changed"),
+        !report
+            .findings
+            .iter()
+            .any(|f| f.category == "Struct Field Type Changed"),
         "generic outer finding must be suppressed"
     );
 }
@@ -281,7 +300,9 @@ fn lexicographic_to_numeric_key_notes_ordering_change() {
         .find(|f| f.category == "Map Key Type Changed")
         .expect("expected MapKeyTypeChanged");
     assert!(
-        f.message.contains("lexicographic") || f.message.contains("ordering") || f.message.contains("numeric"),
+        f.message.contains("lexicographic")
+            || f.message.contains("ordering")
+            || f.message.contains("numeric"),
         "ordering class change must be noted, got: {}",
         f.message
     );
@@ -387,8 +408,16 @@ fn map_value_finding_target_is_field_path() {
 
 #[test]
 fn map_key_finding_on_fn_param_has_correct_target() {
-    let old = spec_with_fn_param("transfer", "opts", map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U32));
-    let new = spec_with_fn_param("transfer", "opts", map_field(ScSpecTypeDef::String, ScSpecTypeDef::U32));
+    let old = spec_with_fn_param(
+        "transfer",
+        "opts",
+        map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U32),
+    );
+    let new = spec_with_fn_param(
+        "transfer",
+        "opts",
+        map_field(ScSpecTypeDef::String, ScSpecTypeDef::U32),
+    );
     let report = compare(&old, &new);
     let f = report
         .findings
@@ -431,33 +460,66 @@ fn map_value_finding_category_string_is_stable() {
 
 #[test]
 fn map_key_change_suppresses_generic_struct_field_type_changed() {
-    let old = spec_with_map_field("S", "m", map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64));
-    let new = spec_with_map_field("S", "m", map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64));
+    let old = spec_with_map_field(
+        "S",
+        "m",
+        map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64),
+    );
+    let new = spec_with_map_field(
+        "S",
+        "m",
+        map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64),
+    );
     let report = compare(&old, &new);
     assert!(
-        !report.findings.iter().any(|f| f.category == "Struct Field Type Changed"),
+        !report
+            .findings
+            .iter()
+            .any(|f| f.category == "Struct Field Type Changed"),
         "generic Struct Field Type Changed must be suppressed when map-specific finding exists"
     );
 }
 
 #[test]
 fn map_value_change_suppresses_generic_struct_field_type_changed() {
-    let old = spec_with_map_field("S", "m", map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U32));
-    let new = spec_with_map_field("S", "m", map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64));
+    let old = spec_with_map_field(
+        "S",
+        "m",
+        map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U32),
+    );
+    let new = spec_with_map_field(
+        "S",
+        "m",
+        map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64),
+    );
     let report = compare(&old, &new);
     assert!(
-        !report.findings.iter().any(|f| f.category == "Struct Field Type Changed"),
+        !report
+            .findings
+            .iter()
+            .any(|f| f.category == "Struct Field Type Changed"),
         "generic Struct Field Type Changed must be suppressed when map-specific finding exists"
     );
 }
 
 #[test]
 fn map_key_change_on_param_suppresses_generic_parameter_type_changed() {
-    let old = spec_with_fn_param("fn1", "arg", map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64));
-    let new = spec_with_fn_param("fn1", "arg", map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64));
+    let old = spec_with_fn_param(
+        "fn1",
+        "arg",
+        map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64),
+    );
+    let new = spec_with_fn_param(
+        "fn1",
+        "arg",
+        map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64),
+    );
     let report = compare(&old, &new);
     assert!(
-        !report.findings.iter().any(|f| f.category == "Parameter Type Changed"),
+        !report
+            .findings
+            .iter()
+            .any(|f| f.category == "Parameter Type Changed"),
         "generic Parameter Type Changed must be suppressed"
     );
 }
@@ -473,7 +535,10 @@ fn map_with_bool_key_change_detected() {
     let new = spec_with_map_field("X", "f", map_field(ScSpecTypeDef::U32, ScSpecTypeDef::U64));
     let report = compare(&old, &new);
     assert!(
-        report.findings.iter().any(|f| f.category == "Map Key Type Changed"),
+        report
+            .findings
+            .iter()
+            .any(|f| f.category == "Map Key Type Changed"),
         "expected MapKeyTypeChanged for bool→u32"
     );
 }
@@ -486,7 +551,10 @@ fn map_with_bytesn_key_change_detected() {
     let new = spec_with_map_field("X", "f", map_field(bytesn(64), ScSpecTypeDef::Address));
     let report = compare(&old, &new);
     assert!(
-        report.findings.iter().any(|f| f.category == "Map Key Type Changed"),
+        report
+            .findings
+            .iter()
+            .any(|f| f.category == "Map Key Type Changed"),
         "expected MapKeyTypeChanged for BytesN<32>→BytesN<64>"
     );
     // Both BytesN → same ordering class (lexicographic) — no ordering note expected
@@ -549,7 +617,11 @@ fn map_with_tuple_key_notes_unsupported_ordering() {
             .expect("fits"),
     }));
     let old = spec_with_map_field("X", "f", map_field(tuple_key, ScSpecTypeDef::U64));
-    let new = spec_with_map_field("X", "f", map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64));
+    let new = spec_with_map_field(
+        "X",
+        "f",
+        map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64),
+    );
     let report = compare(&old, &new);
     let f = report
         .findings
@@ -566,11 +638,22 @@ fn map_with_tuple_key_notes_unsupported_ordering() {
 #[test]
 fn map_with_i128_key_changed_to_u128_detected() {
     // Both numeric but different signedness/size — still a key-domain change
-    let old = spec_with_map_field("X", "f", map_field(ScSpecTypeDef::I128, ScSpecTypeDef::Address));
-    let new = spec_with_map_field("X", "f", map_field(ScSpecTypeDef::U128, ScSpecTypeDef::Address));
+    let old = spec_with_map_field(
+        "X",
+        "f",
+        map_field(ScSpecTypeDef::I128, ScSpecTypeDef::Address),
+    );
+    let new = spec_with_map_field(
+        "X",
+        "f",
+        map_field(ScSpecTypeDef::U128, ScSpecTypeDef::Address),
+    );
     let report = compare(&old, &new);
     assert!(
-        report.findings.iter().any(|f| f.category == "Map Key Type Changed"),
+        report
+            .findings
+            .iter()
+            .any(|f| f.category == "Map Key Type Changed"),
         "expected MapKeyTypeChanged for i128→u128"
     );
     // Both numeric — no ordering class note
@@ -617,8 +700,16 @@ fn unchanged_map_produces_no_map_findings() {
 
 #[test]
 fn map_key_message_contains_old_and_new_key_types() {
-    let old = spec_with_map_field("S", "m", map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64));
-    let new = spec_with_map_field("S", "m", map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64));
+    let old = spec_with_map_field(
+        "S",
+        "m",
+        map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64),
+    );
+    let new = spec_with_map_field(
+        "S",
+        "m",
+        map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64),
+    );
     let report = compare(&old, &new);
     let f = report
         .findings
@@ -639,8 +730,16 @@ fn map_key_message_contains_old_and_new_key_types() {
 
 #[test]
 fn map_value_message_contains_old_and_new_value_types() {
-    let old = spec_with_map_field("S", "m", map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U32));
-    let new = spec_with_map_field("S", "m", map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U128));
+    let old = spec_with_map_field(
+        "S",
+        "m",
+        map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U32),
+    );
+    let new = spec_with_map_field(
+        "S",
+        "m",
+        map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U128),
+    );
     let report = compare(&old, &new);
     let f = report
         .findings

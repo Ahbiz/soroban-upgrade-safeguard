@@ -121,8 +121,8 @@ fn matching_expected_wasm_hash_allows_comparison_to_proceed() {
     );
 
     // Must have performed the comparison (produced findings)
-    let json: serde_json::Value = serde_json::from_str(&run.stdout)
-        .expect("output must be valid JSON when hash matches");
+    let json: serde_json::Value =
+        serde_json::from_str(&run.stdout).expect("output must be valid JSON when hash matches");
 
     assert!(
         json.get("findings").is_some(),
@@ -134,10 +134,7 @@ fn matching_expected_wasm_hash_allows_comparison_to_proceed() {
         "comparison must have produced a verdict"
     );
 
-    assert_eq!(
-        json["is_safe"], false,
-        "v1->v2 comparison must be unsafe"
-    );
+    assert_eq!(json["is_safe"], false, "v1->v2 comparison must be unsafe");
 }
 
 #[test]
@@ -193,13 +190,10 @@ fn expected_wasm_hash_is_case_insensitive() {
     );
 
     // Comparison should have run successfully
-    let json: serde_json::Value = serde_json::from_str(&run.stdout)
-        .expect("output must be valid JSON");
+    let json: serde_json::Value =
+        serde_json::from_str(&run.stdout).expect("output must be valid JSON");
 
-    assert!(
-        json.get("findings").is_some(),
-        "comparison must have run"
-    );
+    assert!(json.get("findings").is_some(), "comparison must have run");
 }
 
 #[test]
@@ -370,8 +364,8 @@ fn expected_wasm_hash_with_mixed_case_matches() {
         run.stderr
     );
 
-    let json: serde_json::Value = serde_json::from_str(&run.stdout)
-        .expect("comparison should have run");
+    let json: serde_json::Value =
+        serde_json::from_str(&run.stdout).expect("comparison should have run");
 
     assert!(json.get("findings").is_some());
 }
