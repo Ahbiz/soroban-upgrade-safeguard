@@ -89,6 +89,49 @@ fn lint_exits_with_error_code_on_invalid_spec() {
 }
 
 #[test]
+fn lint_strict_exits_with_strict_code_on_warnings_only() {
+    let wasm = fixture("tests/wasm/v1.wasm");
+    let schema = fixture("tests/fixtures/lint/warning_only_storage_schema.json");
+
+    let output = lint(&[
+        wasm.to_str().unwrap(),
+        "--storage-schema",
+        schema.to_str().unwrap(),
+        "--format",
+        "json",
+    ]);
+    assert!(
+        output.status.success(),
+        "lint without --strict must exit zero when only warning/info findings are present. stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("stdout was not valid UTF-8");
+    let report: serde_json::Value =
+        serde_json::from_str(&stdout).expect("--format json output must be valid JSON");
+    assert_eq!(
+        report["summary"]["errors"], 0,
+        "fixture must produce no error-severity findings. report:\n{stdout}"
+    );
+    assert!(
+        report["summary"]["warnings"].as_u64().unwrap_or(0) > 0,
+        "fixture must produce at least one warning-severity finding. report:\n{stdout}"
+    );
+
+    let strict_output = lint(&[
+        wasm.to_str().unwrap(),
+        "--storage-schema",
+        schema.to_str().unwrap(),
+        "--strict",
+    ]);
+    assert_eq!(
+        strict_output.status.code(),
+        Some(3),
+        "lint --strict must exit with the documented strict status (3) when only warning/info findings are present. stderr:\n{}",
+        String::from_utf8_lossy(&strict_output.stderr)
+    );
+}
+
+#[test]
 fn lint_validates_declared_storage_schema_against_spec() {
     let wasm = fixture("tests/wasm/v1.wasm");
     let schema = fixture("tests/fixtures/lint/invalid_storage_schema.json");
