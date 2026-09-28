@@ -427,6 +427,12 @@ pub fn decode_spec_v0(data: &[u8]) -> Result<Vec<ScSpecEntry>, Error> {
     use stellar_xdr::curr::{Limited, Limits, ReadXdr};
 
     if data.is_empty() {
+        // A present but empty contractspecv0 section is unusual but valid:
+        // the contract was compiled with spec generation enabled but declares
+        // no public interface. Inform the user instead of failing silently.
+        // Kept in sync with `crate::parser::decode_spec_entries`, which emits
+        // the same warning on the direct test-only path.
+        eprintln!("warning: contractspecv0 section is present but empty (no spec entries)");
         return Ok(Vec::new());
     }
 

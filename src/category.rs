@@ -86,9 +86,11 @@ pub enum FindingCategory {
     /// the old and the new schema, redirecting reads and writes to a different
     /// ledger entry.
     StorageNamespaceChanged,
-    /// A map's key type changed between the old and new contract.
+    /// A map type's key type changed between the old and new schema, so
+    /// entries serialized under the old key type can no longer be read.
     MapKeyTypeChanged,
-    /// A map's value type changed between the old and new contract.
+    /// A map type's value type changed between the old and new schema, so
+    /// entries serialized under the old value type decode to the wrong data.
     MapValueTypeChanged,
 }
 
@@ -477,10 +479,10 @@ impl FindingCategory {
                 "A storage declaration's namespace or key-domain prefix changed between the old and new schema, redirecting reads and writes to a different ledger entry and orphaning stored data."
             }
             FindingCategory::MapKeyTypeChanged => {
-                "A map's key type changed between the old and new contract, making existing entries unreachable and potentially altering canonical iteration order."
+                "A map's key type changed, so every entry stored under the old key type is unreachable. Keep the original key type, or migrate the map by reading each entry with the old decoder and rewriting it with the new one before deploying."
             }
             FindingCategory::MapValueTypeChanged => {
-                "A map's value type changed between the old and new contract, so entries serialized under the old value type cannot be decoded under the new layout."
+                "A map's value type changed, so entries written with the old value type decode to the wrong data. Keep the original value type, or migrate the map by reading each entry with the old decoder and rewriting it with the new one before deploying."
             }
         }
     }
@@ -699,10 +701,10 @@ impl FindingCategory {
                 "Restore the original namespace or perform a data migration that reads existing entries under the old namespace and writes them under the new one before deploying."
             }
             FindingCategory::MapKeyTypeChanged => {
-                "Restore the original key type, or drain and rewrite the map under the new key domain before deploying so no pre-existing entry becomes unreachable."
+                "A map type's key type differs between the old and new schema, so lookups for keys serialized under the old type resolve to a different entry or to nothing."
             }
             FindingCategory::MapValueTypeChanged => {
-                "Restore the original value type, or perform a data migration that reads every existing entry under the old value type and writes it under the new one before deploying."
+                "A map type's value type differs between the old and new schema, so entries written with the old value type are read back as the wrong data."
             }
         }
     }

@@ -104,6 +104,9 @@ pub struct SorobanMetadata {
 /// an empty vector with a warning printed to stderr. This is distinct from a
 /// missing section (which never calls this function at all).
 #[cfg(test)]
+/// It is referenced by this module's own tests; production decoding goes
+/// through the version-aware [`crate::decoder_registry`] path.
+#[allow(dead_code)]
 fn decode_spec_entries(data: &[u8]) -> Result<Vec<ScSpecEntry>, Error> {
     if data.is_empty() {
         // A present but empty contractspecv0 section is unusual but valid:
@@ -317,11 +320,15 @@ pub fn extract_metadata_with_registry(
                 );
             }
             crate::decoder_registry::DecodeOutcome::UnsupportedVersion { version, message } => {
+                // `message` distinguishes a genuine version mismatch from a
+                // matched decoder that failed mid-decode. `SectionExtraction`'s
+                // `Display` does not print `details`, so forward the real cause
+                // through the source error to keep it in the message chain.
                 return Err(Error::SectionExtraction {
                     section_name: "contractspecv0".to_string(),
                     section_index,
                     byte_offset: *byte_offset,
-                    details: message,
+                    details: message.clone(),
                     source: Some(Box::new(Error::UnsupportedDecoderVersion {
                         version_display: version.map(|v| v.to_string()),
                         message: "no registered decoder matched this interface version".to_string(),
@@ -632,7 +639,25 @@ mod tests {
 
     #[test]
     fn extract_metadata_reports_contractspec_section_offset_for_decode_errors() {
-        let wasm = wasm_with_custom_section("contractspecv0", &[0x00]);
+        // Declare a supported `contractenvmetav0` version so the registry accepts
+        // the contract and decoding reaches the per-entry spec decode, which is
+        // what reports the failing entry index.
+        let env_data = encode_interface_version(20, 0);
+        let mut wasm = Vec::from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+        let env_body = {
+            let mut b = wasm_string("contractenvmetav0");
+            b.extend_from_slice(&env_data);
+            b
+        };
+        wasm.extend(wasm_section(0, env_body));
+        // A `contractspecv0` section whose only entry is not valid XDR.
+        let spec_body = {
+            let mut b = wasm_string("contractspecv0");
+            b.extend_from_slice(&[0x00]);
+            b
+        };
+        wasm.extend(wasm_section(0, spec_body));
+
         let error = extract_metadata(&wasm).expect_err("invalid spec section must fail");
         let mut messages = vec![error.to_string()];
         use std::error::Error as StdError;

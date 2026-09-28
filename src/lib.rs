@@ -101,6 +101,10 @@ mod lint;
 pub mod manifest;
 #[cfg(not(feature = "unstable"))]
 mod manifest;
+#[cfg(feature = "unstable")]
+pub mod metadata_cache;
+#[cfg(not(feature = "unstable"))]
+mod metadata_cache;
 
 #[cfg(feature = "unstable")]
 pub mod mapper;
@@ -126,6 +130,10 @@ mod migration;
 pub mod oci;
 #[cfg(not(feature = "unstable"))]
 mod oci;
+#[cfg(feature = "unstable")]
+pub mod oracle;
+#[cfg(not(feature = "unstable"))]
+mod oracle;
 
 #[cfg(feature = "unstable")]
 pub mod oracle;
@@ -166,6 +174,11 @@ mod render;
 pub mod report;
 #[cfg(not(feature = "unstable"))]
 mod report;
+
+#[cfg(feature = "unstable")]
+pub mod report_schema;
+#[cfg(not(feature = "unstable"))]
+mod report_schema;
 
 #[cfg(feature = "unstable")]
 pub mod rpc;

@@ -19,7 +19,7 @@ use stellar_xdr::curr::{
 ///
 /// `Deserialize` is derived so a previously emitted JSON report can be read
 /// back and re-rendered (see [`crate::render`]).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
     Critical,
@@ -28,7 +28,19 @@ pub enum Severity {
 }
 
 /// A compatibility axis along which findings can be categorized.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum CompatibilityAxis {
     StorageLayout,
@@ -51,7 +63,7 @@ impl CompatibilityAxis {
 }
 
 /// A single finding from the comparison analysis.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Finding {
     #[cfg(feature = "unstable")]
     pub severity: Severity,
