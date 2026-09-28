@@ -86,6 +86,12 @@ pub enum FindingCategory {
     /// the old and new schema, redirecting reads and writes to a different
     /// ledger entry.
     StorageNamespaceChanged,
+    /// A map type's key type changed between the old and new schema, so
+    /// entries serialized under the old key type can no longer be read.
+    MapKeyTypeChanged,
+    /// A map type's value type changed between the old and new schema, so
+    /// entries serialized under the old value type decode to the wrong data.
+    MapValueTypeChanged,
 }
 
 impl std::str::FromStr for FindingCategory {
@@ -172,6 +178,8 @@ impl FindingCategory {
             FindingCategory::WasmProposalRemoved => "WASM Proposal Removed",
             FindingCategory::StorageDurabilityChanged => "Storage Durability Changed",
             FindingCategory::StorageNamespaceChanged => "Storage Namespace Changed",
+            FindingCategory::MapKeyTypeChanged => "Map Key Type Changed",
+            FindingCategory::MapValueTypeChanged => "Map Value Type Changed",
         }
     }
 
@@ -252,6 +260,8 @@ impl FindingCategory {
             FindingCategory::WasmProposalRemoved => Severity::Info,
             FindingCategory::StorageDurabilityChanged => Severity::Critical,
             FindingCategory::StorageNamespaceChanged => Severity::Critical,
+            FindingCategory::MapKeyTypeChanged => Severity::Critical,
+            FindingCategory::MapValueTypeChanged => Severity::Critical,
         }
     }
 
@@ -467,6 +477,12 @@ impl FindingCategory {
             }
             FindingCategory::StorageNamespaceChanged => {
                 "A storage declaration's namespace or key-domain prefix changed between the old and new schema, redirecting reads and writes to a different ledger entry and orphaning stored data."
+            }
+            FindingCategory::MapKeyTypeChanged => {
+                "A map's key type changed, so every entry stored under the old key type is unreachable. Keep the original key type, or migrate the map by reading each entry with the old decoder and rewriting it with the new one before deploying."
+            }
+            FindingCategory::MapValueTypeChanged => {
+                "A map's value type changed, so entries written with the old value type decode to the wrong data. Keep the original value type, or migrate the map by reading each entry with the old decoder and rewriting it with the new one before deploying."
             }
         }
     }
@@ -684,6 +700,12 @@ impl FindingCategory {
             FindingCategory::StorageNamespaceChanged => {
                 "Restore the original namespace or perform a data migration that reads existing entries under the old namespace and writes them under the new one before deploying."
             }
+            FindingCategory::MapKeyTypeChanged => {
+                "A map type's key type differs between the old and new schema, so lookups for keys serialized under the old type resolve to a different entry or to nothing."
+            }
+            FindingCategory::MapValueTypeChanged => {
+                "A map type's value type differs between the old and new schema, so entries written with the old value type are read back as the wrong data."
+            }
         }
     }
 
@@ -760,6 +782,8 @@ impl FindingCategory {
             FindingCategory::WasmProposalRemoved,
             FindingCategory::StorageDurabilityChanged,
             FindingCategory::StorageNamespaceChanged,
+            FindingCategory::MapKeyTypeChanged,
+            FindingCategory::MapValueTypeChanged,
         ]
     }
 

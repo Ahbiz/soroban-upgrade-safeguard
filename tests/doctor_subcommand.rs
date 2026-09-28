@@ -3,7 +3,6 @@
 //! The `doctor` subcommand reports environment, version, enabled features,
 //! cache locations, and resolved configuration without analyzing any WASM inputs.
 
-use std::path::PathBuf;
 use std::process::Command;
 
 fn bin() -> Command {

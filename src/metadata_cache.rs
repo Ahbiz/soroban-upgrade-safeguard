@@ -241,7 +241,7 @@ impl CacheStats {
 // ---------------------------------------------------------------------------
 
 /// Configuration for the metadata cache.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MetadataCacheConfig {
     /// When `true`, neither read from nor write to the cache.
     pub no_cache: bool,
@@ -249,16 +249,6 @@ pub struct MetadataCacheConfig {
     pub cache_dir: Option<PathBuf>,
     /// When `true`, print hit/miss/invalidation counts to stderr after the run.
     pub print_stats: bool,
-}
-
-impl Default for MetadataCacheConfig {
-    fn default() -> Self {
-        Self {
-            no_cache: false,
-            cache_dir: None,
-            print_stats: false,
-        }
-    }
 }
 
 impl MetadataCacheConfig {
@@ -507,10 +497,7 @@ pub fn inspect_entries(cache_dir: &Path) -> Vec<CacheEntryInfo> {
 pub fn print_cache_inspect(cache_dir: &Path) {
     let entries = inspect_entries(cache_dir);
     if entries.is_empty() {
-        eprintln!(
-            "metadata-cache: no entries in '{}'",
-            cache_dir.display()
-        );
+        eprintln!("metadata-cache: no entries in '{}'", cache_dir.display());
         return;
     }
     let total_bytes: u64 = entries.iter().map(|e| e.payload_bytes).sum();
@@ -581,7 +568,7 @@ mod tests {
         build_entry(
             key,
             "[]".to_string(),
-            Some(((20u64) << 32) | 0),
+            Some(20u64 << 32),
             true,
             "abc123".to_string(),
         )
@@ -638,8 +625,11 @@ mod tests {
     // ------------------------------------------------------------------
 
     fn temp_dir_for_test(suffix: &str) -> PathBuf {
-        let dir = std::env::temp_dir()
-            .join(format!("safeguard-metadata-cache-test-{}-{}", suffix, std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "safeguard-metadata-cache-test-{}-{}",
+            suffix,
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         dir
     }
@@ -794,8 +784,15 @@ mod tests {
     // default_cache_dir
     // ------------------------------------------------------------------
 
+    /// Serializes tests that mutate the process-global `CACHE_DIR_ENV_VAR`.
+    /// Cargo runs tests in parallel threads within a single process, so
+    /// without this a concurrent `remove_var` makes the "when set" case
+    /// observe the fallback path.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn default_cache_dir_uses_env_var_when_set() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // Temporarily set the env var.
         std::env::set_var(CACHE_DIR_ENV_VAR, "/tmp/my-custom-cache");
         let dir = default_cache_dir();
@@ -805,6 +802,7 @@ mod tests {
 
     #[test]
     fn default_cache_dir_falls_back_to_temp_dir() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::remove_var(CACHE_DIR_ENV_VAR);
         let dir = default_cache_dir();
         assert!(dir.to_string_lossy().contains("soroban-upgrade-safeguard"));

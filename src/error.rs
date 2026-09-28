@@ -28,6 +28,7 @@ pub enum ErrorKind {
     RpcSnapshotConsistency,
     RpcIdMismatch,
     SymlinkRejected,
+    UnsupportedDecoderVersion,
 }
 
 /// The canonical error type for the soroban-upgrade-safeguard library.
@@ -56,6 +57,7 @@ pub enum ErrorKind {
 /// | [`OciFetch`](Error::OciFetch) | Resolving an `oci://` input artifact failed (manifest/blob transport, auth, or media-type selection) |
 /// | [`RpcIdMismatch`](Error::RpcIdMismatch) | A JSON-RPC response's `id` was missing or did not match the request's `id` |
 /// | [`SymlinkRejected`](Error::SymlinkRejected) | A local input path was a symlink while `--no-symlinks` was in effect |
+/// | [`UnsupportedDecoderVersion`](Error::UnsupportedDecoderVersion) | No registered spec decoder matched the contract's interface version, or a decoder was asked to handle a version it does not own |
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -156,6 +158,16 @@ pub enum Error {
         /// The fully resolved target, when it could be determined.
         resolved: Option<PathBuf>,
     },
+    /// No registered spec decoder could handle the contract's interface
+    /// version, or a decoder was asked to decode a version it does not own.
+    UnsupportedDecoderVersion {
+        /// Display form of the offending interface version, or `None` when
+        /// the version was absent from the spec.
+        version_display: Option<String>,
+        /// Human-readable reason describing which decoder was expected and
+        /// what was mismatched.
+        message: String,
+    },
 }
 
 impl Error {
@@ -184,6 +196,7 @@ impl Error {
             Error::RpcSnapshotConsistency { .. } => ErrorKind::RpcSnapshotConsistency,
             Error::RpcIdMismatch { .. } => ErrorKind::RpcIdMismatch,
             Error::SymlinkRejected { .. } => ErrorKind::SymlinkRejected,
+            Error::UnsupportedDecoderVersion { .. } => ErrorKind::UnsupportedDecoderVersion,
         }
     }
 
@@ -394,6 +407,19 @@ impl fmt::Display for Error {
                     path.display()
                 ),
             },
+            Error::UnsupportedDecoderVersion {
+                version_display,
+                message,
+            } => match version_display {
+                Some(version) => write!(
+                    f,
+                    "No registered spec decoder supports interface version {version}: {message}"
+                ),
+                None => write!(
+                    f,
+                    "No registered spec decoder supports this contract: {message}"
+                ),
+            },
         }
     }
 }
@@ -441,6 +467,7 @@ impl std::error::Error for Error {
             Error::RpcSnapshotConsistency { .. } => None,
             Error::RpcIdMismatch { .. } => None,
             Error::SymlinkRejected { .. } => None,
+            Error::UnsupportedDecoderVersion { .. } => None,
         }
     }
 }

@@ -1488,7 +1488,7 @@ fn run_doctor(args: &DoctorArgs) -> Result<()> {
             );
             config.insert(
                 "suppression_count".to_string(),
-                serde_json::json!(suppressions.count()),
+                serde_json::json!(suppressions.rules().len()),
             );
             root.insert(
                 "configuration".to_string(),
@@ -1535,7 +1535,7 @@ fn run_doctor(args: &DoctorArgs) -> Result<()> {
                     println!("  Source:      default");
                 }
             }
-            println!("  Suppressions loaded: {}", suppressions.count());
+            println!("  Suppressions loaded: {}", suppressions.rules().len());
             println!();
 
             println!("{}", "Environment:".bold());

@@ -1369,9 +1369,13 @@ mod tests {
     #[test]
     fn round_trip_text_matches_a_live_run() {
         let live = sample_report();
-        let live_text = live.generate_summary_text(false);
+        // `to_renderable` re-stamps the clock on every call, so both sides of
+        // the comparison must share one render to stay independent of the wall
+        // clock second boundary.
+        let live_renderable = live.to_renderable();
+        let live_text = live_renderable.to_text(false);
 
-        let json = serde_json::to_string_pretty(&live.to_renderable()).unwrap();
+        let json = serde_json::to_string_pretty(&live_renderable).unwrap();
         let restored = RenderableReport::from_json_str(&json).unwrap();
 
         assert_eq!(restored.to_text(false), live_text);
@@ -1380,9 +1384,10 @@ mod tests {
     #[test]
     fn round_trip_markdown_matches_a_live_run() {
         let live = sample_report();
-        let live_markdown = live.generate_summary_markdown();
+        let live_renderable = live.to_renderable();
+        let live_markdown = live_renderable.to_markdown();
 
-        let json = serde_json::to_string_pretty(&live.to_renderable()).unwrap();
+        let json = serde_json::to_string_pretty(&live_renderable).unwrap();
         let restored = RenderableReport::from_json_str(&json).unwrap();
 
         assert_eq!(restored.to_markdown(), live_markdown);
@@ -1408,12 +1413,13 @@ mod tests {
             None,
         );
 
-        let json = serde_json::to_string(&live.to_renderable()).unwrap();
+        let live_renderable = live.to_renderable();
+        let json = serde_json::to_string(&live_renderable).unwrap();
         let restored = RenderableReport::from_json_str(&json).unwrap();
 
         assert_eq!(
             restored.to_text(true),
-            live.generate_summary_text(true),
+            live_renderable.to_text(true),
             "remediation guidance must survive the round trip"
         );
         assert!(restored.to_text(true).contains("guidance:"));

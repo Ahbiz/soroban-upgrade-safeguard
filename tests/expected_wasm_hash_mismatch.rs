@@ -43,7 +43,7 @@ fn run(args: &[&str]) -> Run {
 /// and extracting it from JSON output.
 fn get_wasm_sha256(wasm_path: &str) -> String {
     let output = Command::new(env!("CARGO_BIN_EXE_soroban-upgrade-safeguard"))
-        .args(&[wasm_path, wasm_path, "--format", "json"])
+        .args([wasm_path, wasm_path, "--format", "json"])
         .output()
         .expect("failed to run binary");
 
@@ -315,9 +315,8 @@ fn expected_wasm_hash_fails_before_performing_comparison() {
     // Output should NOT be valid comparison JSON (error occurred before comparison)
     let parse_result = serde_json::from_str::<serde_json::Value>(&run.stdout);
 
-    if parse_result.is_ok() {
-        let json = parse_result.unwrap();
-        // If it parsed as JSON, it should not have comparison fields
+    // If output parsed as JSON, it should not have comparison fields
+    if let Ok(json) = &parse_result {
         assert!(
             json.get("findings").is_none(),
             "must fail before producing findings, got: {}",

@@ -46,8 +46,7 @@ use soroban_upgrade_safeguard::oracle::{
     compare_enum_discriminants, compare_error_enum_discriminants, compare_spec,
     compare_spec_with_seed, compare_type_paths, map_type, option_type, oracle_network_enabled,
     spec_with_enum, spec_with_error_enum, spec_with_field_types, spec_with_fn, spec_with_union,
-    tuple_type, udt_type, vec_type, CounterexampleRecord, OracleDivergence, OracleReport,
-    ReferenceTypePath, SafeguardTypePath,
+    tuple_type, udt_type, vec_type, OracleReport, SafeguardTypePath,
 };
 use stellar_xdr::curr::{ScSpecTypeBytesN, ScSpecTypeDef, ScSpecTypeResult};
 

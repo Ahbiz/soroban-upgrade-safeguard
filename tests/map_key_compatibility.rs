@@ -28,8 +28,7 @@ use soroban_upgrade_safeguard::diff::{compare, Severity};
 use soroban_upgrade_safeguard::spec::ContractSpec;
 use stellar_xdr::curr::{
     ScSpecFunctionInputV0, ScSpecFunctionV0, ScSpecTypeBytesN, ScSpecTypeDef, ScSpecTypeMap,
-    ScSpecTypeOption, ScSpecTypeTuple, ScSpecTypeUdt, ScSpecTypeVec, ScSpecUdtStructFieldV0,
-    ScSpecUdtStructV0, StringM, VecM,
+    ScSpecTypeTuple, ScSpecTypeUdt, ScSpecUdtStructFieldV0, ScSpecUdtStructV0, StringM, VecM,
 };
 
 // ---------------------------------------------------------------------------

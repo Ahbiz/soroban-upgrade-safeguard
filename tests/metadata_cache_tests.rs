@@ -9,9 +9,8 @@ use std::path::PathBuf;
 
 use soroban_upgrade_safeguard::loader::sha256_hex;
 use soroban_upgrade_safeguard::metadata_cache::{
-    build_entry, clear_cache, default_cache_dir, lookup, store, CacheIdentity, CacheKey,
-    CacheStats, CachedMetadata, MetadataCacheConfig, CACHE_DIR_ENV_VAR, CACHE_SCHEMA_VERSION,
-    TOOL_VERSION,
+    build_entry, clear_cache, lookup, store, CacheIdentity, CacheKey, CacheStats, CachedMetadata,
+    MetadataCacheConfig, CACHE_SCHEMA_VERSION, TOOL_VERSION,
 };
 
 // ---------------------------------------------------------------------------
@@ -36,7 +35,7 @@ fn entry_for(key: &CacheKey) -> CachedMetadata {
     build_entry(
         key,
         "[]".to_string(),
-        Some(((20u64) << 32) | 0),
+        Some(20u64 << 32),
         true,
         "cafebabe".to_string(),
     )

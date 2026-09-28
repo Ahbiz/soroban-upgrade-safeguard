@@ -2509,8 +2509,7 @@ fn union_case_bytesn_size_change(
 mod tests {
     use super::*;
     use stellar_xdr::curr::{
-        ScEnvMetaEntry, ScSpecFunctionInputV0, ScSpecFunctionV0, ScSpecTypeUdt, ScSpecTypeVec,
-        StringM, VecM,
+        ScEnvMetaEntry, ScSpecFunctionInputV0, ScSpecFunctionV0, ScSpecTypeUdt, StringM, VecM,
     };
     use wasmparser::ValType;
 
