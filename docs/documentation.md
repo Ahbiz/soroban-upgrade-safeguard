@@ -256,6 +256,14 @@ RPC mode fetches the baseline from chain and verifies it cryptographically; mani
 directory modes run batch comparisons. The full usage strings and options
 match the CLI help output (`--help`) and the `override_usage` in `src/main.rs`.
 
+In directory mode, `--exclude <GLOB>` (repeatable) leaves matching `.wasm`
+artifacts out of the scan — vendored, example, or test builds — on both the
+old and new sides. An excluded artifact is reported as skipped, naming the
+pattern responsible, rather than silently dropped, and it can never move the
+verdict. Patterns match the path relative to the scanned directory, with `*`,
+`?`, and `**` as wildcards. See
+[Excluding artifacts from a directory scan](../README.md#excluding-artifacts-from-a-directory-scan)
+in the README for the full semantics and examples.
 ### Choosing a batch input mode
 
 Two modes drive a batch comparison: a manifest, or a pair of directories.

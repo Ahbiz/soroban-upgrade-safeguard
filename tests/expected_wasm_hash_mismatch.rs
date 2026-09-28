@@ -44,8 +44,7 @@ fn run(args: &[&str]) -> Run {
 fn get_wasm_sha256(wasm_path: &str) -> String {
     use sha2::{Digest, Sha256};
     let bytes = std::fs::read(wasm_path).expect("fixture wasm must be readable");
-    let digest = Sha256::digest(&bytes);
-    hex::encode(digest)
+    hex::encode(Sha256::digest(&bytes))
 }
 
 #[test]
@@ -185,10 +184,7 @@ fn expected_wasm_hash_is_case_insensitive() {
     let json: serde_json::Value =
         serde_json::from_str(&run.stdout).expect("output must be valid JSON");
 
-    assert!(
-        json.get("findings_by_category").is_some(),
-        "comparison must have run"
-    );
+    assert!(json.get("findings_by_category").is_some(), "comparison must have run");
 }
 
 #[test]
@@ -310,10 +306,10 @@ fn expected_wasm_hash_fails_before_performing_comparison() {
     // Output should NOT be valid comparison JSON (error occurred before comparison)
     let parse_result = serde_json::from_str::<serde_json::Value>(&run.stdout);
 
-    // If output parsed as JSON, it should not have comparison fields
-    if let Ok(json) = &parse_result {
+    if let Ok(json) = parse_result {
+        // If it parsed as JSON, it should not have comparison fields
         assert!(
-            json.get("findings").is_none(),
+            json.get("findings_by_category").is_none(),
             "must fail before producing findings, got: {}",
             json
         );

@@ -57,7 +57,7 @@ pub enum ErrorKind {
 /// | [`OciFetch`](Error::OciFetch) | Resolving an `oci://` input artifact failed (manifest/blob transport, auth, or media-type selection) |
 /// | [`RpcIdMismatch`](Error::RpcIdMismatch) | A JSON-RPC response's `id` was missing or did not match the request's `id` |
 /// | [`SymlinkRejected`](Error::SymlinkRejected) | A local input path was a symlink while `--no-symlinks` was in effect |
-/// | [`UnsupportedDecoderVersion`](Error::UnsupportedDecoderVersion) | No registered spec decoder matched the contract's interface version, or a decoder was asked to handle a version it does not own |
+/// | [`UnsupportedDecoderVersion`](Error::UnsupportedDecoderVersion) | A custom section declared an interface version this build has no decoder for |
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -158,14 +158,13 @@ pub enum Error {
         /// The fully resolved target, when it could be determined.
         resolved: Option<PathBuf>,
     },
-    /// No registered spec decoder could handle the contract's interface
-    /// version, or a decoder was asked to decode a version it does not own.
+    /// No registered decoder claimed the interface version a custom section
+    /// declared. The section was read, but this build cannot interpret it, so
+    /// the comparison would be a guess rather than a check.
     UnsupportedDecoderVersion {
-        /// Display form of the offending interface version, or `None` when
-        /// the version was absent from the spec.
+        /// The version the section declared, when it could be rendered.
         version_display: Option<String>,
-        /// Human-readable reason describing which decoder was expected and
-        /// what was mismatched.
+        /// Why no decoder matched.
         message: String,
     },
 }
@@ -410,16 +409,13 @@ impl fmt::Display for Error {
             Error::UnsupportedDecoderVersion {
                 version_display,
                 message,
-            } => match version_display {
-                Some(version) => write!(
-                    f,
-                    "No registered spec decoder supports interface version {version}: {message}"
-                ),
-                None => write!(
-                    f,
-                    "No registered spec decoder supports this contract: {message}"
-                ),
-            },
+            } => {
+                write!(f, "Unsupported interface version: {message}")?;
+                if let Some(version) = version_display {
+                    write!(f, " (section declared {version})")?;
+                }
+                Ok(())
+            }
         }
     }
 }

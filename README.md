@@ -58,6 +58,7 @@ This compares the old build (`v1.wasm`) against the new build (`v2.wasm`) and re
   - [Quiet output](#quiet-output)
   - [Watch mode](#watch-mode)
   - [Comparing two directories of builds](#comparing-two-directories-of-builds)
+  - [Excluding artifacts from a directory scan](#excluding-artifacts-from-a-directory-scan)
   - [Comparing many contracts at once](#comparing-many-contracts-at-once)
   - [Deterministic output for snapshot testing](#deterministic-output-for-snapshot-testing)
   - [GitHub Action](#github-action)
@@ -1253,6 +1254,49 @@ disappeared from a release is exactly the kind of accident this gate exists to
 catch — so the run fails. The reverse case, a new artifact with no old
 counterpart, has nothing to compare against; it is listed as a warning on stderr
 and does not affect the verdict.
+
+#### Excluding artifacts from a directory scan
+
+A scanned tree often holds builds that should not be judged — vendored
+copies, examples, test fixtures. `--exclude` takes a glob pattern and leaves
+every matching `.wasm` artifact out of the scan. It can be repeated, and an
+artifact matching any one of the patterns is excluded:
+
+```bash
+soroban-upgrade-safeguard --old-dir ./artifacts/v1 --new-dir ./artifacts/v2 \
+  --exclude "vendor_*.wasm" --exclude "**/test_fixture.wasm"
+```
+
+Patterns are matched against the artifact's path relative to the directory
+being scanned. `*` stands for any run of characters except `/`, `?` for
+exactly one character, and `**` for any run including `/`; every other
+character is literal:
+
+| Pattern | Matches | Does not match |
+|---------|---------|----------------|
+| `vendor_*.wasm` | `vendor_acme.wasm` | `nested/vendor_acme.wasm` |
+| `**/test_fixture.wasm` | `nested/test_fixture.wasm`, `test_fixture.wasm` | `test_fixture.wasm.bak` |
+| `token.wasm` | `token.wasm` | `Token.wasm` |
+
+The exclusion applies identically to both scanned directories: an excluded
+file forms no pair, is never reported as old-only or new-only, and cannot
+move the verdict. Excluded artifacts are **reported as skipped rather than
+silently dropped**, each naming the pattern responsible, so the report always
+accounts for every artifact the scan found:
+
+```text
+⏭️  Skipped 2 .wasm artifact(s) matching --exclude:
+  - token.wasm [old dir] matched 'token.wasm' (...)
+  - token.wasm [new dir] matched 'token.wasm' (...)
+  These were not compared and did not affect the verdict. Narrow or drop --exclude to include them.
+```
+
+The same report appears in watch mode, on every cycle whose plan excludes
+artifacts. If a pattern matches everything present, the run fails with an
+error naming the patterns rather than reporting a suspiciously clean scan.
+`--exclude` is only accepted in directory mode: a `--manifest` already names
+both sides of every pair (drop rows from the manifest instead), and a
+single-pair comparison takes its two WASM paths positionally.
 
 ### Comparing many contracts at once
 

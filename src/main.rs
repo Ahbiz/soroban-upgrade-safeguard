@@ -563,6 +563,20 @@ struct Args {
     #[arg(long, value_name = "NEW_DIR", requires = "old_dir")]
     new_dir: Option<PathBuf>,
 
+    /// Glob pattern for `.wasm` artifacts to leave out of a directory scan
+    /// (--old-dir/--new-dir), so vendored, example, or test builds sitting in
+    /// the scanned tree are not compared. Matched against each artifact's path
+    /// relative to the directory being scanned, where `*` stands for any run of
+    /// characters, `?` for exactly one, and `**` for any run including `/`;
+    /// every other character is literal. Can be repeated, and an artifact
+    /// matching any one of the patterns is excluded. Exclusion applies to both
+    /// scanned directories, and an excluded artifact is reported as skipped
+    /// rather than silently dropped: it forms no pair, is never reported as
+    /// old-only or new-only, and cannot move the verdict. Not accepted with
+    /// --manifest, which already names both sides of every pair.
+    #[arg(long, value_name = "GLOB", num_args = 1)]
+    exclude: Vec<String>,
+
     /// Directory to write one report file per contract into, using the selected format
     #[arg(
         long = "per-contract-output-dir",
@@ -2454,6 +2468,17 @@ fn main() -> Result<()> {
         anyhow::bail!("Cannot use empirical validation with --interface-lockfile");
     }
 
+    // --exclude narrows a directory sweep. Outside directory mode there is no
+    // sweep to narrow, and silently ignoring the flag would leave a user
+    // believing vendored artifacts had been skipped when they were compared.
+    if !args.exclude.is_empty() && !is_directory_mode(&args) {
+        anyhow::bail!(
+            "Cannot use --exclude outside directory mode. It excludes artifacts from a \
+             --old-dir/--new-dir scan; a --manifest already names both sides of every pair, \
+             and a single-pair comparison takes its two WASM paths positionally."
+        );
+    }
+
     // Manifest-resolution mode: show how the composition resolved and exit,
     // before any WASM is required. Makes a manifest reviewable on its own.
     if args.explain_manifest {
@@ -2550,12 +2575,16 @@ fn main() -> Result<()> {
 }
 
 /// The result of resolving a batch mode run out of its inputs: the composed
-/// manifest (if any), the pairs, and the directory-mode gap/new-only lists.
+/// manifest (if any), the pairs, and the directory-mode gap/new-only/skipped
+/// lists.
 struct BuiltBatch {
     resolved_manifest: Option<manifest::ResolvedManifest>,
     pairs: Vec<BatchPair>,
     gaps: Vec<GapContract>,
     new_only: Vec<NewOnlyContract>,
+    /// Directory-mode artifacts held back by `--exclude`. Empty in manifest
+    /// mode, which names both sides of every pair and has nothing to exclude.
+    skipped: Vec<SkippedFile>,
 }
 
 /// Resolve a batch run into its ready-to-execute form, shared by the single-pass
@@ -2564,10 +2593,11 @@ struct BuiltBatch {
 /// Manifest mode resolves includes, defaults and per-pair overrides up front —
 /// including duplicate-identity detection, so a collision fails before any pair
 /// runs rather than mid-loop with earlier reports already on disk. Directory
-/// mode sweeps both directories for shared-name `.wasm` artifacts.
+/// mode sweeps both directories for shared-name `.wasm` artifacts, leaving out
+/// anything an `--exclude` pattern matches.
 fn build_batch(args: &Args) -> Result<BuiltBatch> {
     let cli = cli_settings(args)?;
-    let (resolved_manifest, pairs, gaps, new_only) = if let Some(manifest_path) = &args.manifest {
+    let (resolved_manifest, scanned) = if let Some(manifest_path) = &args.manifest {
         let resolved = manifest::resolve(manifest_path, &cli)?;
         let pairs: Vec<BatchPair> = resolved
             .pairs
@@ -2577,21 +2607,31 @@ fn build_batch(args: &Args) -> Result<BuiltBatch> {
             .collect();
         // A manifest names both sides of every pair explicitly, so there is no
         // directory to sweep and no such thing as an unmatched artifact.
-        (Some(resolved), pairs, Vec::new(), Vec::new())
+        (
+            Some(resolved),
+            ScannedArtifacts {
+                pairs,
+                gaps: Vec::new(),
+                new_only: Vec::new(),
+                skipped: Vec::new(),
+            },
+        )
     } else {
         let settings = manifest::cli_only_settings(&cli);
-        let (pairs, gaps, new_only) = scan_directories(
+        let scanned = scan_directories(
             args.old_dir.as_ref().unwrap(),
             args.new_dir.as_ref().unwrap(),
             &settings,
+            &args.exclude,
         )?;
-        (None, pairs, gaps, new_only)
+        (None, scanned)
     };
     Ok(BuiltBatch {
         resolved_manifest,
-        pairs,
-        gaps,
-        new_only,
+        pairs: scanned.pairs,
+        gaps: scanned.gaps,
+        new_only: scanned.new_only,
+        skipped: scanned.skipped,
     })
 }
 
@@ -2614,11 +2654,12 @@ fn run_batch(args: &Args, outputs: &[OutputSpec], progress: &dyn Fn(String)) -> 
     // including duplicate-identity detection, so a collision fails before any
     // pair runs rather than mid-loop with earlier reports already on disk.
     let built = build_batch(args)?;
-    let (resolved_manifest, pairs, mut gaps, new_only) = (
+    let (resolved_manifest, pairs, mut gaps, new_only, skipped) = (
         built.resolved_manifest,
         built.pairs,
         built.gaps,
         built.new_only,
+        built.skipped,
     );
 
     if args.per_contract_output_dir.is_some() {
@@ -2677,6 +2718,35 @@ fn run_batch(args: &Args, outputs: &[OutputSpec], progress: &dyn Fn(String)) -> 
         pairs.len(),
         gaps.len()
     ));
+
+    // Artifacts an --exclude pattern held back are named here. They are
+    // reported rather than dropped because a file the user chose to skip and a
+    // file the scan never saw are otherwise indistinguishable: one is a
+    // decision someone made, the other is a hole in what was checked. The line
+    // goes through `progress` rather than straight to stderr, unlike the
+    // new-only warning below, because unlike that warning nobody is being
+    // told off — the user asked for exactly this, and the run still accounts
+    // for every artifact it found.
+    if !skipped.is_empty() {
+        progress(format!(
+            "⏭️  Skipped {} .wasm artifact(s) matching --exclude:",
+            skipped.len()
+        ));
+        for file in &skipped {
+            progress(format!(
+                "  - {} [{} dir] matched '{}' ({})",
+                file.relative_path,
+                file.side.label(),
+                file.pattern,
+                file.path.display()
+            ));
+        }
+        progress(
+            "  These were not compared and did not affect the verdict. Narrow or drop \
+             --exclude to include them."
+                .to_string(),
+        );
+    }
 
     // New-only artifacts are reported here and nowhere else. They are not
     // comparison pairs: they never enter `results`, never claim a slot in the
@@ -4161,7 +4231,14 @@ fn handle_status_write(
 }
 
 fn is_batch_mode(args: &Args) -> bool {
-    args.manifest.is_some() || (args.old_dir.is_some() && args.new_dir.is_some())
+    args.manifest.is_some() || is_directory_mode(args)
+}
+
+/// Whether this run sweeps `--old-dir`/`--new-dir`, as opposed to naming pairs
+/// through a manifest. The distinction matters for `--exclude`, which only has
+/// a directory sweep to apply to.
+fn is_directory_mode(args: &Args) -> bool {
+    args.old_dir.is_some() && args.new_dir.is_some()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5598,11 +5675,355 @@ struct NewOnlyContract {
     new_path: PathBuf,
 }
 
+/// Which scanned directory an artifact was found in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ScanSide {
+    Old,
+    New,
+}
+
+impl ScanSide {
+    /// Lowercase name for report lines, matching the `--old-dir`/`--new-dir`
+    /// flag names rather than a phrase a reader has to translate.
+    fn label(self) -> &'static str {
+        match self {
+            ScanSide::Old => "old",
+            ScanSide::New => "new",
+        }
+    }
+}
+
+/// A `.wasm` artifact that an `--exclude` pattern kept out of a directory scan.
+///
+/// Recorded rather than dropped so the run can account for every artifact it
+/// found: a file the user asked to skip and a file the scan never saw look
+/// identical in a report that only lists what was compared, and the first is a
+/// decision someone made while the second is a gap in what was checked.
+///
+/// One entry per side. The two directories are swept independently and either
+/// sweep could have dropped the artifact on its own, so an artifact present in
+/// both is two entries — naming the side is what tells a reader whether a
+/// pattern was meant to cover both.
+struct SkippedFile {
+    side: ScanSide,
+    /// The artifact's path relative to the scanned directory — the exact string
+    /// the matching pattern was tested against, so the report shows the pattern
+    /// failing to match precisely what the user sees in their own tree.
+    relative_path: String,
+    /// The first `--exclude` pattern that matched, so a pattern that
+    /// over-matched is traceable to its own flag rather than to "an exclude".
+    pattern: String,
+    /// Absolute path, for the same reason new-only artifacts print one: the
+    /// report is read after the fact, away from the working directory.
+    path: PathBuf,
+}
+
+/// Is this directory entry a `.wasm` artifact a scan should consider?
+///
+/// Both sweeps test this identically, so the two can never disagree about
+/// which files are candidates. `--exclude` is applied *after* this test, so
+/// candidacy and exclusion stay separate decisions and an excluded file is
+/// still known to have been a `.wasm` file — which is what makes reporting it
+/// as skipped honest rather than speculative.
+fn is_wasm_artifact(path: &Path) -> bool {
+    path.is_file()
+        && path
+            .extension()
+            .and_then(|s| s.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("wasm"))
+}
+
+/// Does `pattern` match `text` under the `--exclude` glob dialect?
+///
+/// `*` stands for any run of characters except `/`, `**` for any run including
+/// `/`, and `?` for exactly one character other than `/`. Every other character
+/// matches only itself, so a pattern containing regex or shell syntax is
+/// literal rather than silently reinterpreted. Matching is case-sensitive over
+/// the path as the filesystem spelled it.
+///
+/// Written out rather than pulled from a crate: the only strings ever matched
+/// are the names of files sitting in a directory, and a scan has no tree to
+/// walk and no pattern set worth compiling. A glob engine would be dependency
+/// weight with nothing to do, and the dialect above is the whole of it.
+fn glob_matches(pattern: &str, text: &str) -> bool {
+    let pattern: Vec<char> = pattern.chars().collect();
+    let text: Vec<char> = text.chars().collect();
+    glob_match_from(&pattern, &text, &mut std::collections::HashSet::new())
+}
+
+/// Whether the pattern suffix matches the whole remaining text.
+///
+/// Recursing past a wildcard means the same suffix is retried at every offset
+/// it can consume, which is exponential for a pattern like `*a*a*a*a*b` against
+/// a long non-matching string. `seen` memoizes the (suffix, remainder) pairs
+/// already reached, which is sound because this is a pure function of those
+/// two: a pair that matched would have returned `true` out of every frame on the
+/// way, so a repeated pair is always one already known not to match.
+fn glob_match_from(
+    pattern: &[char],
+    text: &[char],
+    seen: &mut std::collections::HashSet<(usize, usize)>,
+) -> bool {
+    if !seen.insert((pattern.len(), text.len())) {
+        return false;
+    }
+
+    let Some(&first) = pattern.first() else {
+        return text.is_empty();
+    };
+
+    match first {
+        '*' => {
+            if pattern.get(1) == Some(&'*') {
+                if pattern.get(2) == Some(&'/') {
+                    // `**/` is "zero or more directory levels", which has to
+                    // include the zero case or `**/token.wasm` would only ever
+                    // match a file nested at least one level down — the
+                    // opposite of what a user writing it against a flat scan
+                    // means. So try the remainder against the text as it
+                    // stands, then again past each separator in turn: a deep
+                    // path has to be reachable by skipping more than one
+                    // level, so the positions are walked rather than the single
+                    // next component being handed back to the matcher.
+                    let rest = &pattern[3..];
+                    if glob_match_from(rest, text, seen) {
+                        return true;
+                    }
+                    let mut end = 0;
+                    while let Some(slash) = text[end..].iter().position(|&c| c == '/') {
+                        end += slash + 1;
+                        if glob_match_from(rest, &text[end..], seen) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                // A bare `**` spans separators and may stand for nothing at all,
+                // so the remainder after it has to be offered every suffix of
+                // the text rather than only the text one character in.
+                let rest = &pattern[2..];
+                let mut end = 0;
+                loop {
+                    if glob_match_from(rest, &text[end..], seen) {
+                        return true;
+                    }
+                    match text.get(end) {
+                        Some(_) => end += 1,
+                        None => return false,
+                    }
+                }
+            }
+            // A lone `*` stops at a separator, so `*/token.wasm` selects one
+            // level rather than swallowing a whole subtree. It still consumes a
+            // variable number of characters, so each shorter remainder is tried
+            // in turn until a separator or the end of the text ends the run.
+            let rest = &pattern[1..];
+            let mut end = 0;
+            loop {
+                if glob_match_from(rest, &text[end..], seen) {
+                    return true;
+                }
+                match text.get(end) {
+                    Some(&c) if c != '/' => end += 1,
+                    _ => return false,
+                }
+            }
+        }
+        '?' => match text.split_first() {
+            Some((head, tail)) => *head != '/' && glob_match_from(&pattern[1..], tail, seen),
+            None => false,
+        },
+        literal => match text.split_first() {
+            Some((head, tail)) => *head == literal && glob_match_from(&pattern[1..], tail, seen),
+            None => false,
+        },
+    }
+}
+
+/// The first `--exclude` pattern that excludes `path`, or `None` if it is kept.
+///
+/// Tested against the path relative to the directory being scanned so a pattern
+/// reads the way the tree is laid out instead of depending on where the run was
+/// launched from. A path that does not sit under `root` falls back to its own
+/// final component rather than being reported as matching everything, so a
+/// surprising path can never exclude an artifact by accident.
+fn excluded_by<'a>(path: &Path, root: &Path, patterns: &'a [String]) -> Option<&'a str> {
+    if patterns.is_empty() {
+        return None;
+    }
+    let relative = relative_scan_path(path, root);
+    patterns
+        .iter()
+        .find(|pattern| glob_matches(pattern, &relative))
+        .map(String::as_str)
+}
+
+/// `path` relative to the directory being scanned, with `/` separators
+/// whatever the platform, so a pattern means the same thing everywhere. Falls
+/// back to the file name whenever stripping leaves nothing usable — an empty
+/// string or a still-absolute one — which keeps the value safe to hand a
+/// pattern that matches everything.
+fn relative_scan_path(path: &Path, root: &Path) -> String {
+    let relative = path.strip_prefix(root).unwrap_or(path);
+    let text = relative.to_string_lossy().replace('\\', "/");
+    if text.is_empty() || text.starts_with('/') {
+        path.file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or(text)
+    } else {
+        text
+    }
+}
+
+/// A trailing sentence naming the `--exclude` patterns in force, or nothing at
+/// all when there are none.
+///
+/// Appended to the "found nothing to compare" diagnostics. A pattern that
+/// matches everything leaves the scan legitimately empty, and the error would
+/// otherwise send the reader looking for missing build artifacts that are
+/// sitting right there on disk.
+fn exclude_hint(exclude: &[String]) -> String {
+    if exclude.is_empty() {
+        return String::new();
+    }
+    let patterns = exclude
+        .iter()
+        .map(|pattern| format!("'{pattern}'"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("\n  Every .wasm artifact present was excluded by: {patterns}")
+}
+
+#[cfg(test)]
+mod exclude_glob_tests {
+    use super::*;
+
+    #[test]
+    fn a_star_spans_any_run_except_a_separator() {
+        assert!(glob_matches("*.wasm", "token.wasm"));
+        assert!(glob_matches("tok*asm", "token.wasm"));
+        assert!(glob_matches("*.wasm", "a-rather-long-contract-name.wasm"));
+        // The separator is what a lone `*` refuses to cross, so this must not
+        // match: a pattern that quietly ignored it would exclude whole
+        // subtrees the user never named.
+        assert!(!glob_matches("*.wasm", "nested/token.wasm"));
+    }
+
+    #[test]
+    fn a_double_star_spans_separators_and_may_stand_for_nothing() {
+        assert!(glob_matches("**/*.wasm", "token.wasm"));
+        assert!(glob_matches("**/*.wasm", "nested/token.wasm"));
+        assert!(glob_matches("**/*.wasm", "deeply/nested/token.wasm"));
+        assert!(glob_matches("nested/**", "nested/token.wasm"));
+        assert!(glob_matches("nested/**", "nested/"));
+        // Only the pattern side is allowed to be empty; the path still has to
+        // have something in it.
+        assert!(!glob_matches("**/*.wasm", "nested/token.wasm.bak"));
+    }
+
+    #[test]
+    fn a_question_mark_matches_exactly_one_non_separator_character() {
+        assert!(glob_matches("token?.wasm", "token1.wasm"));
+        assert!(!glob_matches("token?.wasm", "token.wasm"));
+        assert!(!glob_matches("token?.wasm", "token12.wasm"));
+        assert!(!glob_matches("token?.wasm", "nested/token1.wasm"));
+    }
+
+    #[test]
+    fn a_pattern_with_no_wildcards_is_an_exact_comparison() {
+        assert!(glob_matches("token.wasm", "token.wasm"));
+        assert!(!glob_matches("token.wasm", "Token.wasm"));
+        assert!(!glob_matches("token.wasm", "token.wasm.bak"));
+    }
+
+    #[test]
+    fn an_empty_pattern_matches_only_an_empty_path() {
+        // A stray `--exclude ""` must not behave like a match-everything
+        // wildcard and silently drop the whole scan.
+        assert!(glob_matches("", ""));
+        assert!(!glob_matches("", "token.wasm"));
+    }
+
+    #[test]
+    fn excluded_by_reports_the_first_pattern_that_matched() {
+        let root = Path::new("/builds/old");
+        let patterns = vec![
+            "vendor/**".to_string(),
+            "*.wasm".to_string(),
+            "never-matches".to_string(),
+        ];
+        assert_eq!(
+            excluded_by(Path::new("/builds/old/token.wasm"), root, &patterns),
+            Some("*.wasm")
+        );
+        // The leading `vendor/**` is tried first, so it is the one reported.
+        assert_eq!(
+            excluded_by(Path::new("/builds/old/vendor/token.wasm"), root, &patterns),
+            Some("vendor/**")
+        );
+        assert_eq!(
+            excluded_by(Path::new("/builds/old/notes.txt"), root, &patterns),
+            None
+        );
+    }
+
+    #[test]
+    fn no_patterns_means_nothing_is_excluded() {
+        assert_eq!(
+            excluded_by(Path::new("/builds/a.wasm"), Path::new("/builds"), &[]),
+            None
+        );
+    }
+
+    #[test]
+    fn a_path_outside_the_scan_root_is_matched_on_its_own_name() {
+        // A path that is somehow not under `root` must be reduced to a bare
+        // name rather than handed to the matcher still absolute: an absolute
+        // path would let a pattern with a leading separator exclude a file the
+        // user never named, and an empty one would let `--exclude ""` swallow
+        // it. A plain catch-all still matches, which is what a user writing
+        // `**` asked for.
+        let root = Path::new("/builds/old");
+        let strayed = Path::new("/somewhere/else/token.wasm");
+        assert_eq!(relative_scan_path(strayed, root), "token.wasm");
+        assert_eq!(excluded_by(strayed, root, &["**".to_string()]), Some("**"));
+        assert_eq!(excluded_by(strayed, root, &["/**".to_string()]), None);
+        assert_eq!(excluded_by(strayed, root, &["**/".to_string()]), None);
+    }
+
+    #[test]
+    fn exclude_hint_names_every_pattern_in_force() {
+        assert_eq!(exclude_hint(&[]), "");
+        let hint = exclude_hint(&["*.wasm".to_string(), "vendor/**".to_string()]);
+        assert!(hint.contains("'*.wasm'"), "{hint}");
+        assert!(hint.contains("'vendor/**'"), "{hint}");
+    }
+}
+
+/// Everything one `--old-dir`/`--new-dir` sweep found.
+///
+/// A struct rather than a four-tuple: the four lists are four different
+/// verdicts about a file — compared, vanished, added, or deliberately left out —
+/// and naming them at the call site is worth more than the brevity. Each list
+/// is disjoint, so the counts add up to the number of `.wasm` artifacts
+/// discovered, and a file appears in at most one of `gaps` and `new_only`.
+struct ScannedArtifacts {
+    /// Artifacts whose name matched on both sides.
+    pairs: Vec<BatchPair>,
+    /// Present in the old directory only — a Critical finding, not a skip.
+    gaps: Vec<GapContract>,
+    /// Present in the new directory only — a warning, never a pair.
+    new_only: Vec<NewOnlyContract>,
+    /// Present but matched by an `--exclude` pattern.
+    skipped: Vec<SkippedFile>,
+}
+
 fn scan_directories(
     old_dir: &Path,
     new_dir: &Path,
     settings: &manifest::ResolvedSettings,
-) -> Result<(Vec<BatchPair>, Vec<GapContract>, Vec<NewOnlyContract>)> {
+    exclude: &[String],
+) -> Result<ScannedArtifacts> {
     if !old_dir.is_dir() {
         anyhow::bail!("Old directory '{}' is not a directory", old_dir.display());
     }
@@ -5612,14 +6033,22 @@ fn scan_directories(
 
     let mut pairs = Vec::new();
     let mut gaps = Vec::new();
+    let mut skipped = Vec::new();
     for entry in std::fs::read_dir(old_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file()
-            && path
-                .extension()
-                .and_then(|s| s.to_str())
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("wasm"))
+        if !is_wasm_artifact(&path) {
+            continue;
+        }
+        if let Some(pattern) = excluded_by(&path, old_dir, exclude) {
+            skipped.push(SkippedFile {
+                side: ScanSide::Old,
+                relative_path: relative_scan_path(&path, old_dir),
+                pattern: pattern.to_string(),
+                path,
+            });
+            continue;
+        }
         {
             let filename = path.file_name().unwrap();
             let new_path = new_dir.join(filename);
@@ -5663,17 +6092,24 @@ fn scan_directories(
     // The reverse sweep: new-side artifacts the old-side loop never looked at.
     // The match test mirrors that loop exactly — a pair is formed when the same
     // file name exists as a file on both sides — so the two views can never
-    // disagree about what counts as matched.
+    // disagree about what counts as matched. `--exclude` is applied here on the
+    // same terms, and before the match test, so an excluded artifact is
+    // accounted for as skipped rather than escaping through either the matched
+    // branch or the new-only list.
     let mut new_only = Vec::new();
     for entry in std::fs::read_dir(new_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if !path.is_file()
-            || !path
-                .extension()
-                .and_then(|s| s.to_str())
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("wasm"))
-        {
+        if !is_wasm_artifact(&path) {
+            continue;
+        }
+        if let Some(pattern) = excluded_by(&path, new_dir, exclude) {
+            skipped.push(SkippedFile {
+                side: ScanSide::New,
+                relative_path: relative_scan_path(&path, new_dir),
+                pattern: pattern.to_string(),
+                path,
+            });
             continue;
         }
         let filename = path.file_name().unwrap();
@@ -5694,7 +6130,13 @@ fn scan_directories(
     // `read_dir` yields entries in unspecified order; sort so the warning reads
     // the same way on every run and in every CI log.
     new_only.sort_by(|a, b| a.name.cmp(&b.name));
+    // Same reason, and this list is read as a record of what was left out: an
+    // unordered one would make two runs over the same tree disagree.
+    skipped.sort_by(|a, b| {
+        (a.relative_path.as_str(), a.side).cmp(&(b.relative_path.as_str(), b.side))
+    });
 
+    let hint = exclude_hint(exclude);
     if pairs.is_empty() && gaps.is_empty() {
         if new_only.is_empty() {
             // Both directories contain no WASM files. Check if directories are truly empty
@@ -5711,18 +6153,20 @@ fn scan_directories(
                     "Both batch directories are empty.\n  \
                      old-dir: {}\n  \
                      new-dir: {}\n\
-                     Directory scan requires at least one .wasm artifact in the old directory.",
+                     Directory scan requires at least one .wasm artifact in the old directory.{}",
                     old_dir.display(),
-                    new_dir.display()
+                    new_dir.display(),
+                    hint
                 );
             } else {
                 anyhow::bail!(
                     "No .wasm files found in batch directories.\n  \
                      old-dir: {}\n  \
                      new-dir: {}\n\
-                     Directory scan requires .wasm artifacts. Check that the directories contain built contract files.",
+                     Directory scan requires .wasm artifacts. Check that the directories contain built contract files.{}",
                     old_dir.display(),
-                    new_dir.display()
+                    new_dir.display(),
+                    hint
                 );
             }
         }
@@ -5732,14 +6176,20 @@ fn scan_directories(
         anyhow::bail!(
             "No .wasm files found in '{}', but '{}' contains {} .wasm file(s). \
              Directory mode only compares files that share a name in both \
-             directories — check that --old-dir and --new-dir are not reversed.",
+             directories — check that --old-dir and --new-dir are not reversed.{}",
             old_dir.display(),
             new_dir.display(),
             new_only.len(),
+            hint,
         );
     }
 
-    Ok((pairs, gaps, new_only))
+    Ok(ScannedArtifacts {
+        pairs,
+        gaps,
+        new_only,
+        skipped,
+    })
 }
 
 #[allow(dead_code)]

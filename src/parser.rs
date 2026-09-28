@@ -103,6 +103,7 @@ pub struct SorobanMetadata {
 /// An empty `data` slice (a present but empty contractspecv0 section) returns
 /// an empty vector with a warning printed to stderr. This is distinct from a
 /// missing section (which never calls this function at all).
+#[cfg(test)]
 /// It is referenced by this module's own tests; production decoding goes
 /// through the version-aware [`crate::decoder_registry`] path.
 #[allow(dead_code)]
@@ -330,7 +331,7 @@ pub fn extract_metadata_with_registry(
                     details: message.clone(),
                     source: Some(Box::new(Error::UnsupportedDecoderVersion {
                         version_display: version.map(|v| v.to_string()),
-                        message,
+                        message: "no registered decoder matched this interface version".to_string(),
                     })),
                 });
             }

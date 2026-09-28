@@ -117,6 +117,11 @@ pub mod contract_migration;
 mod contract_migration;
 
 #[cfg(feature = "unstable")]
+pub mod metadata_cache;
+#[cfg(not(feature = "unstable"))]
+mod metadata_cache;
+
+#[cfg(feature = "unstable")]
 pub mod migration;
 #[cfg(not(feature = "unstable"))]
 mod migration;
@@ -125,6 +130,11 @@ mod migration;
 pub mod oci;
 #[cfg(not(feature = "unstable"))]
 mod oci;
+#[cfg(feature = "unstable")]
+pub mod oracle;
+#[cfg(not(feature = "unstable"))]
+mod oracle;
+
 #[cfg(feature = "unstable")]
 pub mod oracle;
 #[cfg(not(feature = "unstable"))]

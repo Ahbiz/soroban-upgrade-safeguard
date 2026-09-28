@@ -83,7 +83,7 @@ pub enum FindingCategory {
     /// schema (e.g. persistent → temporary).
     StorageDurabilityChanged,
     /// A storage declaration's namespace or key-domain prefix changed between
-    /// the old and new schema, redirecting reads and writes to a different
+    /// the old and the new schema, redirecting reads and writes to a different
     /// ledger entry.
     StorageNamespaceChanged,
     /// A map type's key type changed between the old and new schema, so
