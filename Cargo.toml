@@ -32,6 +32,8 @@ sha2 = "0.10"
 ring = "0.17"
 base64 = "0.22"
 ureq = { version = "2.9", features = ["json"] }
+# JSON Schema generation for `print-schema`.
+schemars = "0.8"
 
 # Watch mode
 notify = { version = "7.0", optional = true }

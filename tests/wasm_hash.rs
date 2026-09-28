@@ -58,9 +58,8 @@ fn run_with_expected_hash(expected: &str) -> (i32, String) {
 /// against the baseline's actual hash.
 #[test]
 fn expected_wasm_hash_with_non_hex_characters_is_rejected_as_malformed() {
-    let (code, stderr) = run_with_expected_hash(
-        "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
-    );
+    let (code, stderr) =
+        run_with_expected_hash("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
 
     assert_ne!(code, 0, "malformed hash must be rejected: {stderr}");
     assert!(

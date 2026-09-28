@@ -1250,30 +1250,33 @@ Example JSON excerpt:
 ## JSON Schema
 
 The JSON output is the integration surface for dashboards, bots, and other
-tooling, so its shape is published as a JSON Schema (Draft 2020-12) under
-[`schema/`](../schema):
+tooling, so its shape is published as a JSON Schema (Draft 7). The schema is
+**derived from the Rust output types**, not hand-written: `src/report_schema.rs`
+generates it with [`schemars`](https://crates.io/crates/schemars) from the same
+`serde` types that produce every report, so it cannot silently drift from what
+the tool emits. Conditionally omitted fields (`suppressed`, `suppression_reason`,
+`remediation`, the interface hashes, …) are marked optional, and the enumerated
+fields (the `counts` severities) are constrained to their allowed values.
 
-- [`schema/report.schema.json`](../schema/report.schema.json) — the single-pair
-  document (`--format json` on a contract pair).
-- [`schema/batch-report.schema.json`](../schema/batch-report.schema.json) — the
-  batch document (`--manifest`, `--old-dir`/`--new-dir`, or `--old-glob`/`--new-glob` with `--format json`),
-  whose top level differs from the single-pair shape and embeds a single-pair
-  report per contract under `results`.
-
-Both schemas are **derived from the Rust output types**, not hand-written, so
-they cannot silently drift from what the tool emits: `tests/schema_validation.rs`
-regenerates them from the types and validates real emitted output — including a
-run with suppressed findings and one produced with `--explain` — against the
-committed files, failing if they diverge. Conditionally omitted fields
-(`suppressed`, `suppression_reason`, `remediation`, the duplicate-name lists, …)
-are marked optional, and the enumerated fields (the `counts` severities and
-`recommended_bump`) are constrained to their allowed values.
-
-To regenerate the committed schema after intentionally changing an output type:
+Fetch the schema from the running binary with the `print-schema` subcommand —
+no WASM inputs, no config, and no network access:
 
 ```bash
-UPDATE_SCHEMA=1 cargo test --test schema_validation schemas_match_the_types
+soroban-upgrade-safeguard print-schema
+
+# Single-line output, e.g. to pipe into a validator
+soroban-upgrade-safeguard print-schema --compact
 ```
+
+Fetching it from the binary rather than a checked-in file means the schema a
+consumer validates against is always the one the binary it invokes conforms
+to — there is no repository copy to locate and no risk of it lagging behind
+the installed version. The `report_schema_version` property carries the
+current version as its default, so tooling can pin to the exact shape in use.
+
+`tests/print_schema.rs` verifies the contract end to end: the output is valid
+JSON Schema, it requires no inputs, `--compact` emits a single line, and a
+live `--format json` report satisfies the schema the same binary prints.
 
 ### Stability
 

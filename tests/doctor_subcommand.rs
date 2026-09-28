@@ -3,7 +3,6 @@
 //! The `doctor` subcommand reports environment, version, enabled features,
 //! cache locations, and resolved configuration without analyzing any WASM inputs.
 
-use std::path::PathBuf;
 use std::process::Command;
 
 fn bin() -> Command {
@@ -147,7 +146,11 @@ fn doctor_json_includes_cache_section() {
     );
 
     let cache = &json["cache"];
-    assert!(cache.is_object(), "'cache' must be an object, got: {}", cache);
+    assert!(
+        cache.is_object(),
+        "'cache' must be an object, got: {}",
+        cache
+    );
 
     assert!(
         cache.get("remote_cache_dir").is_some(),
@@ -222,7 +225,9 @@ fn doctor_with_explicit_config_reports_config_file() {
 
     assert!(
         run.stdout.contains(&config_path.display().to_string())
-            || run.stdout.contains(config_path.file_name().unwrap().to_str().unwrap()),
+            || run
+                .stdout
+                .contains(config_path.file_name().unwrap().to_str().unwrap()),
         "doctor must report the explicit config path, got:\n{}",
         run.stdout
     );
@@ -238,10 +243,12 @@ fn doctor_does_not_analyze_wasm_or_produce_findings() {
     assert_eq!(run.code, 0);
 
     let combined = format!("{}{}", run.stdout, run.stderr).to_lowercase();
-    
+
     // Should not contain typical comparison output
     assert!(
-        !combined.contains("finding") && !combined.contains("critical") && !combined.contains("baseline"),
+        !combined.contains("finding")
+            && !combined.contains("critical")
+            && !combined.contains("baseline"),
         "doctor must not analyze WASM or produce findings, got:\n{}\nstderr:\n{}",
         run.stdout,
         run.stderr
@@ -257,7 +264,7 @@ fn doctor_does_not_leak_secret_values() {
     assert_eq!(run.code, 0);
 
     let combined = format!("{}{}", run.stdout, run.stderr);
-    
+
     // Should not contain the secret value
     assert!(
         !combined.contains("super_secret_value_12345"),

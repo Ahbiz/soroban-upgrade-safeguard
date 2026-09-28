@@ -46,8 +46,7 @@ use soroban_upgrade_safeguard::oracle::{
     compare_enum_discriminants, compare_error_enum_discriminants, compare_spec,
     compare_spec_with_seed, compare_type_paths, map_type, option_type, oracle_network_enabled,
     spec_with_enum, spec_with_error_enum, spec_with_field_types, spec_with_fn, spec_with_union,
-    tuple_type, udt_type, vec_type, CounterexampleRecord, OracleDivergence, OracleReport,
-    ReferenceTypePath, SafeguardTypePath,
+    tuple_type, udt_type, vec_type, OracleReport, SafeguardTypePath,
 };
 use stellar_xdr::curr::{ScSpecTypeBytesN, ScSpecTypeDef, ScSpecTypeResult};
 
@@ -367,10 +366,7 @@ fn oracle_vec_of_tuples() {
 #[test]
 fn oracle_map_with_option_value() {
     // Map<Address, Option<u128>>
-    let t = map_type(
-        ScSpecTypeDef::Address,
-        option_type(ScSpecTypeDef::U128),
-    );
+    let t = map_type(ScSpecTypeDef::Address, option_type(ScSpecTypeDef::U128));
     let r = compare_type_paths("map_opt_value", &t);
     assert!(r.is_none(), "Map<Address, Option<u128>> diverged: {:?}", r);
 }
@@ -385,7 +381,11 @@ fn oracle_deeply_nested_map_of_vec_of_tuples() {
     ]);
     let t = map_type(ScSpecTypeDef::Symbol, vec_type(elem));
     let r = compare_type_paths("map_vec_tuple", &t);
-    assert!(r.is_none(), "Map<Symbol, Vec<(u32, Address, bool)>> diverged: {:?}", r);
+    assert!(
+        r.is_none(),
+        "Map<Symbol, Vec<(u32, Address, bool)>> diverged: {:?}",
+        r
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -398,8 +398,7 @@ fn oracle_map_key_type_is_part_of_path() {
     // implementation that omits the key would produce "Map<u64>" instead of
     // "Map<Symbol, u64>".
     let t = map_type(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64);
-    let safeguard =
-        SafeguardTypePath(soroban_upgrade_safeguard::mapper::type_to_string(&t));
+    let safeguard = SafeguardTypePath(soroban_upgrade_safeguard::mapper::type_to_string(&t));
     assert!(
         safeguard.0.contains("Symbol"),
         "key type must be present in safeguard path, got: {}",
@@ -486,7 +485,7 @@ fn oracle_different_bytesn_sizes_produce_different_paths() {
 #[test]
 fn oracle_enum_discriminants_sequential() {
     // Standard sequential enum: Active=0, Inactive=1, Banned=2
-    use stellar_xdr::curr::{ScSpecUdtEnumV0, ScSpecUdtEnumCaseV0, StringM, VecM};
+    use stellar_xdr::curr::{ScSpecUdtEnumCaseV0, ScSpecUdtEnumV0, StringM, VecM};
     let cases: Vec<ScSpecUdtEnumCaseV0> = vec![
         ScSpecUdtEnumCaseV0 {
             doc: StringM::default(),
@@ -521,7 +520,7 @@ fn oracle_enum_discriminants_sequential() {
 #[test]
 fn oracle_enum_discriminants_non_sequential() {
     // Non-sequential values (e.g. error codes): 100, 200, 300
-    use stellar_xdr::curr::{ScSpecUdtEnumV0, ScSpecUdtEnumCaseV0, StringM, VecM};
+    use stellar_xdr::curr::{ScSpecUdtEnumCaseV0, ScSpecUdtEnumV0, StringM, VecM};
     let cases: Vec<ScSpecUdtEnumCaseV0> = vec![
         ScSpecUdtEnumCaseV0 {
             doc: StringM::default(),
@@ -557,9 +556,7 @@ fn oracle_enum_via_compare_spec_clean() {
 
 #[test]
 fn oracle_error_enum_discriminants_clean() {
-    use stellar_xdr::curr::{
-        ScSpecUdtErrorEnumCaseV0, ScSpecUdtErrorEnumV0, StringM, VecM,
-    };
+    use stellar_xdr::curr::{ScSpecUdtErrorEnumCaseV0, ScSpecUdtErrorEnumV0, StringM, VecM};
     let cases: Vec<ScSpecUdtErrorEnumCaseV0> = vec![
         ScSpecUdtErrorEnumCaseV0 {
             doc: StringM::default(),
@@ -616,11 +613,7 @@ fn oracle_union_void_case_no_comparisons() {
 
 #[test]
 fn oracle_union_tuple_case_u64_clean() {
-    let spec = spec_with_union(
-        "Value",
-        vec![],
-        vec![("Int", vec![ScSpecTypeDef::U64])],
-    );
+    let spec = spec_with_union("Value", vec![], vec![("Int", vec![ScSpecTypeDef::U64])]);
     let report = compare_spec_with_seed(&spec, "fixture_union_tuple_u64");
     assert_eq!(report.comparisons, 1);
     assert_oracle_clean(&report);
@@ -634,11 +627,14 @@ fn oracle_union_tuple_case_multi_type_clean() {
         vec!["Noop"],
         vec![
             ("Move", vec![ScSpecTypeDef::Address, ScSpecTypeDef::U128]),
-            ("Swap", vec![
-                ScSpecTypeDef::Address,
-                ScSpecTypeDef::Address,
-                ScSpecTypeDef::U64,
-            ]),
+            (
+                "Swap",
+                vec![
+                    ScSpecTypeDef::Address,
+                    ScSpecTypeDef::Address,
+                    ScSpecTypeDef::U64,
+                ],
+            ),
         ],
     );
     let report = compare_spec_with_seed(&spec, "fixture_union_multi_type");
@@ -697,10 +693,7 @@ fn oracle_function_spec_clean() {
             ("from", ScSpecTypeDef::Address),
             ("to", ScSpecTypeDef::Address),
             ("amount_in", ScSpecTypeDef::U128),
-            (
-                "opts",
-                map_type(ScSpecTypeDef::Symbol, ScSpecTypeDef::U32),
-            ),
+            ("opts", map_type(ScSpecTypeDef::Symbol, ScSpecTypeDef::U32)),
         ],
         vec![result_type(ScSpecTypeDef::U128, ScSpecTypeDef::U32)],
     );
@@ -719,9 +712,9 @@ fn oracle_full_corpus_fixture_clean() {
     use soroban_upgrade_safeguard::spec::ContractSpec;
     use stellar_xdr::curr::{
         ScSpecFunctionInputV0, ScSpecFunctionV0, ScSpecUdtEnumCaseV0, ScSpecUdtEnumV0,
-        ScSpecUdtErrorEnumCaseV0, ScSpecUdtErrorEnumV0, ScSpecUdtStructFieldV0,
-        ScSpecUdtStructV0, ScSpecUdtUnionCaseTupleV0, ScSpecUdtUnionCaseV0,
-        ScSpecUdtUnionCaseVoidV0, ScSpecUdtUnionV0, StringM, VecM,
+        ScSpecUdtErrorEnumCaseV0, ScSpecUdtErrorEnumV0, ScSpecUdtStructFieldV0, ScSpecUdtStructV0,
+        ScSpecUdtUnionCaseTupleV0, ScSpecUdtUnionCaseV0, ScSpecUdtUnionCaseVoidV0,
+        ScSpecUdtUnionV0, StringM, VecM,
     };
 
     let mut spec = ContractSpec::default();
