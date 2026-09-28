@@ -1223,7 +1223,9 @@ after each cycle. Specifically:
 
 Use `--watch-status-file <path>` with any watch mode to have the process write
 an atomically-updated JSON status document (state, cycle number, timestamps,
-verdict) that an external build system or service manager can poll cheaply.
+verdict) that an external build system or service manager can poll cheaply. See
+[docs/watch-status-file.md](docs/watch-status-file.md) for the full JSON shape,
+field semantics, and an example liveness poller.
 
 ### Comparing two directories of builds
 
@@ -1476,6 +1478,7 @@ More detailed guides live in the [docs](docs/) folder. See the [Documentation In
 - [Lineage Tracking Walkthrough](docs/lineage-walkthrough.md): a worked example of recording historical versions, validating a candidate against them, retiring versions, and capping the number of live versions with `--lineage-store`.
 - [Troubleshooting Loader Failures](docs/loader-troubleshooting.md): what to do about malformed WASM, missing custom sections, unsupported formats, and resource-limit rejections.
 - [Report Provenance Fields](docs/report-provenance.md): every field in the `provenance` block of a saved JSON report, with its type, meaning, and notes on which fields are omitted by `--no-timestamp` and `--redact-paths`.
+- [Watch Status File](docs/watch-status-file.md): the JSON shape `--watch-status-file` writes, its field semantics, why findings are never included, and how an external supervisor polls it for liveness.
 - [Multi-Axis Compatibility](docs/multi_axis_compatibility.md): covers the separate storage, call-ABI, and event-indexer compatibility axes and how findings are classified across each.
 - [Compatibility Budgets](docs/compatibility_budgets.md): per-axis and per-rule compatibility budgets, how they are declared, and how budget exhaustion affects the run verdict.
 - [Named Policy Profiles](docs/named_policy_profiles.md): selecting named policy profiles from configuration and the CLI to apply pre-defined sets of compatibility rules.
