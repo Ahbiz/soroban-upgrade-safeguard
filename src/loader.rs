@@ -665,6 +665,195 @@ fn fetch_wasm_from_rpc_inner(
     }
 }
 
+/// Parse a hex-encoded SHA-256 WASM hash (as accepted on the `--wasm-hash`
+/// CLI surface) into its raw 32 bytes.
+fn parse_wasm_hash(hash_hex: &str) -> Result<[u8; 32], Error> {
+    let trimmed = hash_hex.trim();
+    if trimmed.len() != 64 || !trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(Error::InvalidInput {
+            details: format!(
+                "Invalid WASM hash '{}': must be a 64-character hex SHA-256 digest",
+                hash_hex
+            ),
+        });
+    }
+    let bytes = hex::decode(trimmed).map_err(|e| Error::InvalidInput {
+        details: format!("Invalid WASM hash '{}': {}", hash_hex, e),
+    })?;
+    bytes.try_into().map_err(|_| Error::InvalidInput {
+        details: format!("Invalid WASM hash '{}': must decode to 32 bytes", hash_hex),
+    })
+}
+
+/// Fetches an immutable Soroban contract-code artifact directly by its
+/// on-chain WASM hash, without going through a deployed contract instance.
+///
+/// Unlike [`fetch_wasm_from_rpc`], which addresses a *deployed instance* and
+/// resolves its executable hash along the way, this addresses *code
+/// identity* directly: the same code hash may back many contract instances,
+/// or none. Only a single `getLedgerEntries` read is required (no instance
+/// lookup), so there is no snapshot-consistency retry loop here.
+pub fn fetch_wasm_from_code_hash(hash_hex: &str, rpc_url: &str) -> Result<WasmModule, Error> {
+    fetch_wasm_from_code_hash_inner(hash_hex, rpc_url, None)
+}
+
+pub fn fetch_wasm_from_code_hash_with_config(
+    hash_hex: &str,
+    config: &RpcClientConfig,
+) -> Result<WasmModule, Error> {
+    fetch_wasm_from_code_hash_inner(hash_hex, &config.url, Some(config))
+}
+
+fn fetch_wasm_from_code_hash_inner(
+    hash_hex: &str,
+    rpc_url: &str,
+    auth: Option<&RpcClientConfig>,
+) -> Result<WasmModule, Error> {
+    let rpc_url = crate::rpc::normalize_url(rpc_url)?;
+    let rpc_url = rpc_url.as_str();
+
+    let requested_hash = parse_wasm_hash(hash_hex)?;
+    let requested_hash_hex = hex::encode(requested_hash);
+
+    let code_ledger_key = LedgerKey::ContractCode(LedgerKeyContractCode {
+        hash: Hash(requested_hash),
+    });
+
+    let code_key_b64 = code_ledger_key
+        .to_xdr_base64(Limits::none())
+        .map_err(|e| Error::XdrDecoding {
+            entry_index: None,
+            byte_offset: None,
+            details: format!(
+                "Failed to serialize ContractCode LedgerKey to base64: {}",
+                e
+            ),
+            source: Some(Box::new(e)),
+        })?;
+
+    let code_response = query_rpc(
+        rpc_url,
+        auth,
+        "getLedgerEntries",
+        serde_json::json!({ "keys": [code_key_b64] }),
+    )?;
+
+    let ledger_sequence = extract_latest_ledger(&code_response).unwrap_or(0);
+
+    let code_entries = code_response["result"]["entries"]
+        .as_array()
+        .ok_or_else(|| Error::RpcProtocol {
+            rpc_url: crate::rpc::redact_url(rpc_url),
+            code: 0,
+            message: "RPC response for contract code did not contain 'entries' array"
+                .to_string(),
+        })?;
+
+    if code_entries.is_empty() {
+        return Err(Error::RpcProtocol {
+            rpc_url: crate::rpc::redact_url(rpc_url),
+            code: 0,
+            message: format!("WASM code not found on-chain for hash {}", requested_hash_hex),
+        });
+    }
+
+    let expiration = extract_entry_expiration(&code_entries[0]);
+
+    let code_entry_xdr_b64 = code_entries[0]["xdr"]
+        .as_str()
+        .ok_or_else(|| Error::RpcProtocol {
+            rpc_url: crate::rpc::redact_url(rpc_url),
+            code: 0,
+            message: "RPC response code entry missing 'xdr' field".to_string(),
+        })?;
+
+    let code_entry =
+        LedgerEntry::from_xdr_base64(code_entry_xdr_b64, Limits::none()).map_err(|e| {
+            Error::XdrDecoding {
+                entry_index: Some(0),
+                byte_offset: None,
+                details: format!("Failed to deserialize ContractCode LedgerEntry XDR: {}", e),
+                source: Some(Box::new(e)),
+            }
+        })?;
+
+    let contract_code = match code_entry.data {
+        LedgerEntryData::ContractCode(code) => code,
+        _ => {
+            return Err(Error::RpcProtocol {
+                rpc_url: crate::rpc::redact_url(rpc_url),
+                code: 0,
+                message: "Unexpected ledger entry type returned for contract code".to_string(),
+            })
+        }
+    };
+
+    // The entry's own `hash` field must match the key we asked for: a proxy
+    // or misbehaving endpoint could otherwise silently answer with code for
+    // a different hash than requested.
+    if contract_code.hash.0 != requested_hash {
+        return Err(Error::Integrity {
+            details: format!(
+                "RPC returned contract code for hash {} but {} was requested",
+                hex::encode(contract_code.hash.0),
+                requested_hash_hex
+            ),
+            source: None,
+        });
+    }
+
+    let wasm_bytes = contract_code.code.to_vec();
+
+    // The entry's `hash` field and its `code` bytes both come from the same
+    // untrusted response, so verify the actual bytecode digest independently
+    // rather than trusting the claimed `hash` field alone.
+    let actual_digest = sha256_hex(&wasm_bytes);
+    if actual_digest != requested_hash_hex {
+        return Err(Error::Integrity {
+            details: format!(
+                "Fetched WASM digest {} does not match requested hash {}",
+                actual_digest, requested_hash_hex
+            ),
+            source: None,
+        });
+    }
+
+    if wasm_bytes.len() < 4 || &wasm_bytes[0..4] != b"\0asm" {
+        return Err(Error::Integrity {
+            details: format!(
+                "Fetched WASM for hash '{}' has invalid magic bytes",
+                requested_hash_hex
+            ),
+            source: None,
+        });
+    }
+
+    validate_wasm_structure(&wasm_bytes).map_err(|e| Error::Integrity {
+        details: format!(
+            "WASM validation failed for fetched code hash '{}'",
+            requested_hash_hex
+        ),
+        source: Some(Box::new(e)),
+    })?;
+
+    let network = query_network_passphrase(rpc_url, auth);
+    let provenance = crate::rpc::RpcProvenance {
+        ledger_sequence,
+        network,
+        rpc_endpoint: crate::rpc::redact_url(rpc_url),
+        code_hash: requested_hash_hex.clone(),
+        live_until_ledger_seq: expiration,
+    };
+
+    Ok(WasmModule {
+        path: format!("stellar-hash://{}", requested_hash_hex),
+        sha256: actual_digest,
+        bytes: wasm_bytes,
+        rpc_provenance: Some(provenance),
+        symlink: None,
+    })
+}
+
 /// Deterministic (never random) JSON-RPC request ID sent with every request,
 /// so the response can be verified to actually answer it.
 const JSON_RPC_REQUEST_ID: i64 = 1;
