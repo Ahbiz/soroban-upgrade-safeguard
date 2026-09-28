@@ -10,7 +10,7 @@ use std::path::Path;
 use stellar_xdr::curr::{LedgerEntry, LedgerEntryData, Limits, ReadXdr};
 
 /// An empirical finding representing the validation result of a specific storage entry.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct EmpiricalFinding {
     pub entry_key_desc: String,
     pub type_name: String,

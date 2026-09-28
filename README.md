@@ -47,6 +47,7 @@ This compares the old build (`v1.wasm`) against the new build (`v2.wasm`) and re
   - [Validating a single contract spec (lint)](#validating-a-single-contract-spec-lint)
   - [Listing finding categories](#listing-finding-categories)
   - [Checking RPC connectivity (preflight)](#checking-rpc-connectivity-preflight)
+  - [Printing the report JSON schema](#printing-the-report-json-schema)
   - [Symlinked inputs](#symlinked-inputs)
   - [Fetching inputs over HTTPS](#fetching-inputs-over-https)
   - [Validating against historical versions (lineage tracking)](#validating-against-historical-versions-lineage-tracking)
@@ -126,6 +127,7 @@ flags.
 | `stream` | Runs in JSON Lines batch mode: reads one job per line on stdin and writes one result per line to stdout | `stream --help` |
 | `lint` | Checks one contract spec, and optionally a storage schema, for structural problems without comparing it to another build | [Lint rules reference](docs/lint_rules_reference.md) |
 | `preflight` | Checks RPC connectivity and the JSON-RPC response format without fetching any contract code | [RPC security checklist](docs/rpc-security-checklist.md) |
+| `print-schema` | Prints the JSON Schema of the `--format json` report to stdout and exits | [Printing the report schema](#printing-the-report-json-schema) |
 
 ### Strict mode
 
@@ -544,6 +546,36 @@ checklist covering endpoint trust, credentials, and report retention.
 
 `--format json` emits a machine-readable summary of the three checks. The
 command exits non-zero when any check fails.
+
+### Printing the report JSON schema
+
+`print-schema` writes the JSON Schema describing the `--format json` report
+document to stdout and exits — no WASM inputs, no config, and no network
+access:
+
+```bash
+soroban-upgrade-safeguard print-schema
+
+# Single-line output, e.g. to pipe into another tool
+soroban-upgrade-safeguard print-schema --compact
+```
+
+The schema is generated from the same `serde` types that produce every
+report, so a consumer that fetches it from the running binary is validating
+against exactly what that binary emits — there is no file in the repository
+to locate, and no risk of the binary having moved on from a checked-in
+copy. It validates a live run directly:
+
+```bash
+soroban-upgrade-safeguard ./wasm/v1.wasm ./wasm/v2.wasm --format json \
+  | jsonschema --instanceof-jsonschema <(soroban-upgrade-safeguard print-schema)
+```
+
+The schema carries the current `report_schema_version` as the default of the
+matching property, so tooling can pin consumers to the exact shape the
+binary in use produces. See the
+[JSON Schema documentation](docs/documentation.md#json-schema) for the
+fuller description of the schema itself.
 
 ### Symlinked inputs
 

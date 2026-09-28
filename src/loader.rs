@@ -49,7 +49,7 @@ pub fn normalize_path_display(path: &str) -> String {
 /// what was actually read after following every hop of the chain. `None` on
 /// [`WasmModule::symlink`] means the input was a direct file (or came from a
 /// non-filesystem source), not that resolution was skipped.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SymlinkResolution {
     /// The path exactly as given, before resolution, with display
     /// normalization applied (see [`normalize_path_display`]).

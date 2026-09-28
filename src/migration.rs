@@ -47,7 +47,7 @@ pub const LEGACY_SCHEMA_VERSION: u32 = 0;
 
 /// One step's record in a document's migration history, as embedded in the
 /// upgraded artifact.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct MigrationStepRecord {
     pub from: u32,
     pub to: u32,
@@ -63,7 +63,7 @@ pub struct MigrationStepRecord {
 /// actually been through [`upgrade_to_latest`]. Re-running the upgrade on an
 /// already-upgraded document leaves an existing record untouched, since no
 /// new steps apply.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct MigrationRecord {
     /// The schema version the document declared (or [`LEGACY_SCHEMA_VERSION`]
     /// if the field was absent) before any step ran.

@@ -31,7 +31,7 @@ use crate::report::{AxisStatus, ReportedFinding};
 pub const REPORT_SCHEMA_VERSION: u32 = 1;
 
 /// Provenance metadata embedded in every report for auditability.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Provenance {
     /// Tool version from crate metadata (CARGO_PKG_VERSION).
     pub tool_version: String,
@@ -73,7 +73,7 @@ pub struct Provenance {
 }
 
 /// Severity counts, serialized as a nested `counts` object.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SeverityCounts {
     pub critical: usize,
     pub warning: usize,
@@ -139,7 +139,7 @@ impl std::error::Error for RenderError {
 /// This is what `--format json` writes and what the `render` subcommand reads
 /// back. It carries everything the text and Markdown renderers need, which is
 /// what makes a stored report a complete artifact rather than a summary.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct RenderableReport {
     /// Shape version of this document. See [`REPORT_SCHEMA_VERSION`].
     #[serde(default = "default_schema_version")]

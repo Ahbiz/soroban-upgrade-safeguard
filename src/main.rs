@@ -24,7 +24,7 @@ use soroban_upgrade_safeguard::{
     parser, preflight,
     remote::{self, RemoteFetchConfig, RemoteRef},
     render::{self, RenderableReport},
-    report,
+    report, report_schema,
     rpc::RpcClientConfig,
     spec,
     spec_json::{ExtractedSpec, InterfaceLockfile},
@@ -780,6 +780,8 @@ enum Command {
     Lint(LintArgs),
     /// Validate RPC connectivity and JSON-RPC protocol shape without fetching contract code
     Preflight(PreflightArgs),
+    /// Print the JSON Schema for the `--format json` report to stdout and exit
+    PrintSchema(PrintSchemaArgs),
     /// List every finding category with its severity and remediation guidance
     Categories(CategoriesArgs),
     /// Report environment, version, enabled features, cache locations, and resolved configuration
@@ -1141,6 +1143,24 @@ enum DoctorFormat {
     #[default]
     Text,
     Json,
+}
+
+/// `print-schema`: emit the JSON Schema describing the report shape the
+/// running binary produces to stdout, then exit.
+///
+/// Requires no WASM inputs and no network access: the schema is generated
+/// from the same `serde` types that produce every `--format json` report,
+/// so the document a consumer fetches with this command is identical to
+/// what the same build would validate a report against.
+///
+/// Exit code is `0` on success.
+#[derive(ClapArgs, Debug)]
+struct PrintSchemaArgs {
+    /// Pretty-print the schema with two-space indentation (default). Use
+    /// `--compact` for single-line output suitable for piping into a
+    /// one-line tool.
+    #[arg(long)]
+    compact: bool,
 }
 
 fn rpc_config(url: &str, headers: &[String]) -> Result<RpcClientConfig> {
@@ -1598,6 +1618,32 @@ fn print_preflight_line(label: &str, success: bool, detail: Option<String>) {
         Some(detail) => println!("{label:<12}{status}  {detail}"),
         None => println!("{label:<12}{status}"),
     }
+}
+
+/// Print the JSON Schema describing the JSON-report document the running
+/// binary produces. Pure function over the in-process `RenderableReport`
+/// type, so the output is exactly the schema this build validates
+/// against — a tool that wants to validate a report it just produced can
+/// fetch the schema from the same binary that produced it.
+fn run_print_schema(args: &PrintSchemaArgs) -> Result<()> {
+    let value = report_schema::report_schema_value();
+    let stdout = std::io::stdout();
+    let mut handle = stdout.lock();
+    if args.compact {
+        let bytes = serde_json::to_vec(&value).context("serializing report schema to JSON")?;
+        handle
+            .write_all(&bytes)
+            .context("writing JSON schema to stdout")?;
+    } else {
+        let pretty =
+            serde_json::to_string_pretty(&value).context("serializing report schema to JSON")?;
+        handle
+            .write_all(pretty.as_bytes())
+            .context("writing JSON schema to stdout")?;
+    }
+    handle.write_all(b"\n").ok();
+    handle.flush().ok();
+    Ok(())
 }
 
 /// Extract one build and write its exported interface as a lockfile.
@@ -2357,6 +2403,9 @@ fn main() -> Result<()> {
         Some(Command::Stream(stream_args)) => return run_stream(stream_args),
         Some(Command::Lint(lint_args)) => return run_lint(lint_args),
         Some(Command::Preflight(preflight_args)) => return run_preflight(preflight_args),
+        Some(Command::PrintSchema(print_schema_args)) => {
+            return run_print_schema(print_schema_args)
+        }
         Some(Command::Categories(categories_args)) => return run_categories(categories_args),
         Some(Command::Doctor(doctor_args)) => return run_doctor(doctor_args),
         None => {}
