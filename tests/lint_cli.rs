@@ -168,3 +168,51 @@ fn lint_validates_declared_storage_schema_against_spec() {
         "an invalid declared storage schema must produce a storage-schema-invalid finding. report:\n{stdout}"
     );
 }
+
+#[test]
+fn lint_format_json_emits_parseable_json_carrying_the_findings() {
+    let wasm = fixture("tests/wasm/v1.wasm");
+    let schema = fixture("tests/fixtures/lint/warning_only_storage_schema.json");
+
+    let output = lint(&[
+        wasm.to_str().unwrap(),
+        "--storage-schema",
+        schema.to_str().unwrap(),
+        "--format",
+        "json",
+    ]);
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout was not valid UTF-8");
+    let report: serde_json::Value =
+        serde_json::from_str(&stdout).expect("--format json output must be valid, parseable JSON");
+
+    let findings = report["findings"]
+        .as_array()
+        .expect("report must have a findings array");
+    assert!(
+        !findings.is_empty(),
+        "fixture must produce at least one finding. report:\n{stdout}"
+    );
+    assert_eq!(
+        findings.len(),
+        report["summary"]["warnings"].as_u64().unwrap() as usize
+            + report["summary"]["errors"].as_u64().unwrap() as usize
+            + report["summary"]["infos"].as_u64().unwrap() as usize,
+        "findings array length must match the summary counts. report:\n{stdout}"
+    );
+
+    for finding in findings {
+        assert!(
+            finding["rule_id"].is_string(),
+            "each finding must carry a rule_id. report:\n{stdout}"
+        );
+        assert!(
+            finding["severity"].is_string(),
+            "each finding must carry a severity. report:\n{stdout}"
+        );
+        assert!(
+            finding["message"].is_string() && !finding["message"].as_str().unwrap().is_empty(),
+            "each finding must carry a non-empty message. report:\n{stdout}"
+        );
+    }
+}
