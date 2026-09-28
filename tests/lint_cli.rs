@@ -64,6 +64,31 @@ fn lint_exits_zero_on_clean_valid_spec() {
 }
 
 #[test]
+fn lint_exits_with_error_code_on_invalid_spec() {
+    let wasm = fixture("tests/wasm/v1.wasm");
+    let schema = fixture("tests/fixtures/lint/empty_declaration_name.json");
+
+    let output = lint(&[
+        wasm.to_str().unwrap(),
+        "--storage-schema",
+        schema.to_str().unwrap(),
+    ]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "lint must exit with the documented lint-error status (2) on a structurally invalid input. stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout was not valid UTF-8");
+    assert!(
+        stdout.contains("[ERROR]") && stdout.contains("storage-schema-invalid"),
+        "the error-severity finding must be reported in the output. stdout:\n{stdout}"
+    );
+}
+
+#[test]
 fn lint_validates_declared_storage_schema_against_spec() {
     let wasm = fixture("tests/wasm/v1.wasm");
     let schema = fixture("tests/fixtures/lint/invalid_storage_schema.json");
