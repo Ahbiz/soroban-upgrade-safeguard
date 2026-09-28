@@ -251,16 +251,25 @@ soroban-upgrade-safeguard <NEW_WASM> \
   --interface-lockfile <LOCKFILE>
 ```
 
-- Glob pair mode (pair matches by file stem):
-
-```bash
-soroban-upgrade-safeguard --old-glob '<OLD_PATTERN>' --new-glob '<NEW_PATTERN>'
-```
-
 The first form (two positional paths) remains the simplest for ad-hoc, local checks.
-RPC mode fetches the baseline from chain and verifies it cryptographically; manifest,
-directory, and glob modes run batch comparisons. The full usage strings and options
+RPC mode fetches the baseline from chain and verifies it cryptographically; manifest and
+directory modes run batch comparisons. The full usage strings and options
 match the CLI help output (`--help`) and the `override_usage` in `src/main.rs`.
+
+### Choosing a batch input mode
+
+Two modes drive a batch comparison: a manifest, or a pair of directories.
+
+| Mode | Flag(s) | Pairing | Use when |
+| :--- | :--- | :--- | :--- |
+| [Manifest](batch_manifests.md) | `--manifest <PATH>` | Explicit: each pair is listed by hand (`old`/`new`), optionally with per-pair settings, storage schemas, ids, and labels. | You need per-pair configuration, storage-schema verification, or a reviewable, version-controlled list of exactly which contracts are compared. |
+| [Directory scan](#directory-scan) | `--old-dir <DIR> --new-dir <DIR>` | Implicit: every `.wasm` file in `<OLD_DIR>` is paired with the identically-named file in `<NEW_DIR>`. | You just want to diff two build output directories as they are, with no manifest to maintain — storage schemas and per-pair settings aren't needed. |
+
+The two are mutually exclusive, not layered: passing both `--manifest` and
+`--old-dir`/`--new-dir` in the same invocation is a hard configuration error
+("Cannot specify both --manifest and --old-dir/--new-dir at the same time")
+rather than one silently taking precedence over the other. Pick one mode per
+run.
 
 ### Enumerating finding categories
 
