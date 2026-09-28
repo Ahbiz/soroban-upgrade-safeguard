@@ -2107,6 +2107,24 @@ mod tests {
     }
 
     #[test]
+    fn max_pairs_of_zero_rejects_any_manifest() {
+        // A ceiling of zero is degenerate but must still be a clear
+        // rejection, not a silent empty run: even a single-pair manifest
+        // exceeds it and is reported the same way any other over-cap
+        // manifest is.
+        let dir = temp_dir("max-pairs-zero");
+        let root = write(&dir, "root.toml", &pairs_toml(1));
+        let cli = CliSettings {
+            max_pairs: 0,
+            ..CliSettings::default()
+        };
+        let error = format!("{:#}", resolve(&root, &cli).unwrap_err());
+        assert!(error.contains("1 pairs"), "got: {error}");
+        assert!(error.contains("maximum of 0"), "got: {error}");
+        assert!(error.contains("--max-pairs"), "got: {error}");
+    }
+
+    #[test]
     fn custom_max_pairs_rejects_a_manifest_over_the_custom_limit() {
         let dir = temp_dir("max-pairs-custom-over");
         let root = write(&dir, "root.toml", &pairs_toml(3));
