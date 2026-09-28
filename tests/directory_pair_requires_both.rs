@@ -30,3 +30,23 @@ fn new_dir_without_old_dir_is_rejected() {
         "error should name the missing flag '--old-dir', got: {stderr}"
     );
 }
+
+#[test]
+fn old_dir_without_new_dir_is_rejected() {
+    let output = bin()
+        .args(["--old-dir", "/tmp/does-not-need-to-exist-old"])
+        .output()
+        .expect("failed to run binary");
+
+    assert_ne!(
+        output.status.code(),
+        Some(0),
+        "--old-dir without --new-dir must not succeed"
+    );
+
+    let stderr = String::from_utf8(output.stderr).expect("stderr not UTF-8");
+    assert!(
+        stderr.contains("--new-dir"),
+        "error should name the missing flag '--new-dir', got: {stderr}"
+    );
+}
