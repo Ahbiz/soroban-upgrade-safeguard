@@ -35,6 +35,35 @@ fn lint_errors_clearly_when_no_input_is_given() {
 }
 
 #[test]
+fn lint_exits_zero_on_clean_valid_spec() {
+    let wasm = fixture("tests/wasm/v1.wasm");
+
+    let output = lint(&[wasm.to_str().unwrap(), "--format", "json"]);
+
+    assert!(
+        output.status.success(),
+        "lint on a structurally clean spec must exit zero. stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout was not valid UTF-8");
+    let report: serde_json::Value =
+        serde_json::from_str(&stdout).expect("--format json output must be valid JSON");
+
+    assert_eq!(
+        report["summary"]["errors"], 0,
+        "a clean spec must report no error-severity findings. report:\n{stdout}"
+    );
+    assert!(
+        report["findings"]
+            .as_array()
+            .expect("report must have a findings array")
+            .is_empty(),
+        "a clean spec must report no findings at all. report:\n{stdout}"
+    );
+}
+
+#[test]
 fn lint_validates_declared_storage_schema_against_spec() {
     let wasm = fixture("tests/wasm/v1.wasm");
     let schema = fixture("tests/fixtures/lint/invalid_storage_schema.json");
