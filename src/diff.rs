@@ -423,7 +423,7 @@ pub fn classify_finding_axes(
         | "Function Signature Changed"
         | "Parameter Reordered"
         | "Parameter Type Changed"
-         | "Return Type Changed"
+        | "Return Type Changed"
         | "Map Key Type Changed"
         | "Map Value Type Changed" => {
             axes.push(CompatibilityAxis::CallAbi);
@@ -1168,26 +1168,25 @@ fn check_function_signature(
                     report,
                 );
                 if map_findings == 0 {
-                    let (category, detail) =
-                        if let Some(bytesn_msg) = describe_bytesn_size_change(old_out, new_out) {
-                            (
-                                FindingCategory::BytesNSizeChanged.as_str().to_string(),
-                                bytesn_msg,
-                            )
-                        } else {
-                            (
-                                FindingCategory::ReturnTypeChanged.as_str().to_string(),
-                                describe_nested_type_change(old_out, new_out).unwrap_or_else(
-                                    || {
-                                        format!(
-                                            "changed from `{}` to `{}`",
-                                            crate::mapper::type_to_string(old_out),
-                                            crate::mapper::type_to_string(new_out)
-                                        )
-                                    },
-                                ),
-                            )
-                        };
+                    let (category, detail) = if let Some(bytesn_msg) =
+                        describe_bytesn_size_change(old_out, new_out)
+                    {
+                        (
+                            FindingCategory::BytesNSizeChanged.as_str().to_string(),
+                            bytesn_msg,
+                        )
+                    } else {
+                        (
+                            FindingCategory::ReturnTypeChanged.as_str().to_string(),
+                            describe_nested_type_change(old_out, new_out).unwrap_or_else(|| {
+                                format!(
+                                    "changed from `{}` to `{}`",
+                                    crate::mapper::type_to_string(old_out),
+                                    crate::mapper::type_to_string(new_out)
+                                )
+                            }),
+                        )
+                    };
                     report.findings.push(Finding {
                         axes: Vec::new(),
                         severity: Severity::Critical,
@@ -2240,7 +2239,10 @@ impl MapKeyOrderingClass {
 /// Returns `Some(message)` when the ordering class of the key changed (or
 /// when either side has an unsupported / opaque key type), `None` when both
 /// sides belong to the same ordering class.
-fn map_key_ordering_change_detail(old_key: &ScSpecTypeDef, new_key: &ScSpecTypeDef) -> Option<String> {
+fn map_key_ordering_change_detail(
+    old_key: &ScSpecTypeDef,
+    new_key: &ScSpecTypeDef,
+) -> Option<String> {
     let old_class = MapKeyOrderingClass::of(old_key);
     let new_class = MapKeyOrderingClass::of(new_key);
 
@@ -2256,8 +2258,10 @@ fn map_key_ordering_change_detail(old_key: &ScSpecTypeDef, new_key: &ScSpecTypeD
         Some(format!(
             "map key ordering changed from `{}` ({}) to `{}` ({}); \
              one or both key types have unsupported or opaque ordering semantics",
-            old_label, old_class.label(),
-            new_label, new_class.label(),
+            old_label,
+            old_class.label(),
+            new_label,
+            new_class.label(),
         ))
     } else {
         // Both sides are well-ordered but belong to different classes.
@@ -2265,8 +2269,10 @@ fn map_key_ordering_change_detail(old_key: &ScSpecTypeDef, new_key: &ScSpecTypeD
             "map key ordering changed from `{}` ({} order) to `{}` ({} order); \
              existing range scans and iterators that assumed {} ordering will \
              produce a different traversal sequence under the new key type",
-            old_label, old_class.label(),
-            new_label, new_class.label(),
+            old_label,
+            old_class.label(),
+            new_label,
+            new_class.label(),
             old_class.label(),
         ))
     }
@@ -2300,13 +2306,14 @@ fn emit_map_specific_findings(
 
     if let Some(detail) = map_key_change_detail(old_type, new_type) {
         // Also check whether the ordering class changed.
-        let ordering_note = if let (Some(old_map), Some(new_map)) = (as_map(old_type), as_map(new_type)) {
-            map_key_ordering_change_detail(&old_map.key_type, &new_map.key_type)
-                .map(|note| format!(" Additionally, {}", note))
-                .unwrap_or_default()
-        } else {
-            String::new()
-        };
+        let ordering_note =
+            if let (Some(old_map), Some(new_map)) = (as_map(old_type), as_map(new_type)) {
+                map_key_ordering_change_detail(&old_map.key_type, &new_map.key_type)
+                    .map(|note| format!(" Additionally, {}", note))
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
 
         report.findings.push(Finding {
             axes: Vec::new(),
@@ -2501,7 +2508,9 @@ fn union_case_bytesn_size_change(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use stellar_xdr::curr::{ScEnvMetaEntry, ScSpecFunctionInputV0, ScSpecFunctionV0, ScSpecTypeUdt, ScSpecTypeVec, StringM, VecM};
+    use stellar_xdr::curr::{
+        ScEnvMetaEntry, ScSpecFunctionInputV0, ScSpecFunctionV0, ScSpecTypeUdt, StringM, VecM,
+    };
     use wasmparser::ValType;
 
     /// Helper: build a minimal ContractSpec with the given structs.
@@ -3795,11 +3804,17 @@ mod tests {
         // Map<Symbol, u64> → Map<String, u64>: key-type change
         let old = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64),
+            )],
         )]);
         let new = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64),
+            )],
         )]);
 
         let report = compare(&old, &new);
@@ -3817,7 +3832,10 @@ mod tests {
         assert_eq!(key_finding.severity, Severity::Critical);
         // Generic StructFieldTypeChanged must be suppressed
         assert!(
-            !report.findings.iter().any(|f| f.category == "Struct Field Type Changed"),
+            !report
+                .findings
+                .iter()
+                .any(|f| f.category == "Struct Field Type Changed"),
             "Generic finding should be suppressed"
         );
     }
@@ -3827,11 +3845,17 @@ mod tests {
         // Map<Address, u32> → Map<Address, u64>: value-type change only
         let old = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U32))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U32),
+            )],
         )]);
         let new = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64),
+            )],
         )]);
 
         let report = compare(&old, &new);
@@ -3849,12 +3873,18 @@ mod tests {
         assert_eq!(val_finding.severity, Severity::Critical);
         // No Map Key Type Changed finding (key did not change)
         assert!(
-            !report.findings.iter().any(|f| f.category == "Map Key Type Changed"),
+            !report
+                .findings
+                .iter()
+                .any(|f| f.category == "Map Key Type Changed"),
             "No key finding expected when only value changed"
         );
         // Generic outer finding suppressed
         assert!(
-            !report.findings.iter().any(|f| f.category == "Struct Field Type Changed"),
+            !report
+                .findings
+                .iter()
+                .any(|f| f.category == "Struct Field Type Changed"),
             "Generic finding should be suppressed"
         );
     }
@@ -3864,11 +3894,17 @@ mod tests {
         // Map<Symbol, u32> → Map<String, u64>: both positions change
         let old = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U32))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U32),
+            )],
         )]);
         let new = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64),
+            )],
         )]);
 
         let report = compare(&old, &new);
@@ -3886,7 +3922,10 @@ mod tests {
         assert_eq!(val_count, 1, "expected exactly one MapValueTypeChanged");
         // Generic outer finding must still be suppressed
         assert!(
-            !report.findings.iter().any(|f| f.category == "Struct Field Type Changed"),
+            !report
+                .findings
+                .iter()
+                .any(|f| f.category == "Struct Field Type Changed"),
             "Generic finding should be suppressed when map-specific findings exist"
         );
     }
@@ -3896,11 +3935,17 @@ mod tests {
         // Same Map on both sides — no map findings, no generic finding either
         let old = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64),
+            )],
         )]);
         let new = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64),
+            )],
         )]);
 
         let report = compare(&old, &new);
@@ -3955,7 +4000,10 @@ mod tests {
         assert_eq!(key_finding.severity, Severity::Critical);
         // Generic ParameterTypeChanged must be suppressed
         assert!(
-            !report.findings.iter().any(|f| f.category == "Parameter Type Changed"),
+            !report
+                .findings
+                .iter()
+                .any(|f| f.category == "Parameter Type Changed"),
             "Generic Parameter Type Changed should be suppressed"
         );
     }
@@ -3967,7 +4015,10 @@ mod tests {
         let new = spec_with_structs(vec![("Data", vec![("val", ScSpecTypeDef::U64)])]);
         let report = compare(&old, &new);
         assert!(
-            report.findings.iter().any(|f| f.category == "Struct Field Type Changed"),
+            report
+                .findings
+                .iter()
+                .any(|f| f.category == "Struct Field Type Changed"),
             "Non-map field changes should still use generic finding"
         );
         assert!(
@@ -3992,7 +4043,10 @@ mod tests {
         )]);
         let new = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64),
+            )],
         )]);
         let report = compare(&old, &new);
         let f = report
@@ -4014,11 +4068,17 @@ mod tests {
         // no ordering-semantic change note.
         let old = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::Symbol, ScSpecTypeDef::U64),
+            )],
         )]);
         let new = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::String, ScSpecTypeDef::U64),
+            )],
         )]);
         let report = compare(&old, &new);
         let f = report
@@ -4068,7 +4128,10 @@ mod tests {
         // Map<Address, u64> → Map<U64, u64>: address → numeric ordering change
         let old = spec_with_structs(vec![(
             "Data",
-            vec![("m", make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64))],
+            vec![(
+                "m",
+                make_map_field(ScSpecTypeDef::Address, ScSpecTypeDef::U64),
+            )],
         )]);
         let new = spec_with_structs(vec![(
             "Data",
@@ -4082,7 +4145,9 @@ mod tests {
             .expect("expected MapKeyTypeChanged");
         // Address is its own class; changing to numeric must note the ordering change
         assert!(
-            f.message.contains("address") || f.message.contains("numeric") || f.message.contains("ordering"),
+            f.message.contains("address")
+                || f.message.contains("numeric")
+                || f.message.contains("ordering"),
             "address→numeric message should note ordering change, got: {}",
             f.message
         );
@@ -4091,14 +4156,38 @@ mod tests {
     #[test]
     fn map_ordering_class_query_primitives() {
         // Direct unit test of MapKeyOrderingClass::of
-        assert_eq!(MapKeyOrderingClass::of(&ScSpecTypeDef::U32), MapKeyOrderingClass::Numeric);
-        assert_eq!(MapKeyOrderingClass::of(&ScSpecTypeDef::I64), MapKeyOrderingClass::Numeric);
-        assert_eq!(MapKeyOrderingClass::of(&ScSpecTypeDef::Symbol), MapKeyOrderingClass::Lexicographic);
-        assert_eq!(MapKeyOrderingClass::of(&ScSpecTypeDef::String), MapKeyOrderingClass::Lexicographic);
-        assert_eq!(MapKeyOrderingClass::of(&ScSpecTypeDef::Bytes), MapKeyOrderingClass::Lexicographic);
-        assert_eq!(MapKeyOrderingClass::of(&ScSpecTypeDef::Address), MapKeyOrderingClass::Address);
-        assert_eq!(MapKeyOrderingClass::of(&ScSpecTypeDef::Bool), MapKeyOrderingClass::Bool);
-        assert_eq!(MapKeyOrderingClass::of(&ScSpecTypeDef::Val), MapKeyOrderingClass::Unordered);
+        assert_eq!(
+            MapKeyOrderingClass::of(&ScSpecTypeDef::U32),
+            MapKeyOrderingClass::Numeric
+        );
+        assert_eq!(
+            MapKeyOrderingClass::of(&ScSpecTypeDef::I64),
+            MapKeyOrderingClass::Numeric
+        );
+        assert_eq!(
+            MapKeyOrderingClass::of(&ScSpecTypeDef::Symbol),
+            MapKeyOrderingClass::Lexicographic
+        );
+        assert_eq!(
+            MapKeyOrderingClass::of(&ScSpecTypeDef::String),
+            MapKeyOrderingClass::Lexicographic
+        );
+        assert_eq!(
+            MapKeyOrderingClass::of(&ScSpecTypeDef::Bytes),
+            MapKeyOrderingClass::Lexicographic
+        );
+        assert_eq!(
+            MapKeyOrderingClass::of(&ScSpecTypeDef::Address),
+            MapKeyOrderingClass::Address
+        );
+        assert_eq!(
+            MapKeyOrderingClass::of(&ScSpecTypeDef::Bool),
+            MapKeyOrderingClass::Bool
+        );
+        assert_eq!(
+            MapKeyOrderingClass::of(&ScSpecTypeDef::Val),
+            MapKeyOrderingClass::Unordered
+        );
     }
 
     #[test]
@@ -4107,7 +4196,10 @@ mod tests {
         let vec_key = ScSpecTypeDef::Vec(Box::new(ScSpecTypeVec {
             element_type: Box::new(ScSpecTypeDef::U32),
         }));
-        assert_eq!(MapKeyOrderingClass::of(&vec_key), MapKeyOrderingClass::Unordered);
+        assert_eq!(
+            MapKeyOrderingClass::of(&vec_key),
+            MapKeyOrderingClass::Unordered
+        );
     }
 
     // ---------------------------------------------------------------

@@ -98,9 +98,9 @@ impl VersionPredicate {
         match self {
             VersionPredicate::AnyVersion => true,
             VersionPredicate::NoVersion => version.is_none(),
-            VersionPredicate::ExactProtocol(p) => version.map_or(false, |v| v.protocol == *p),
+            VersionPredicate::ExactProtocol(p) => version.is_some_and(|v| v.protocol == *p),
             VersionPredicate::ProtocolRange { min, max } => {
-                version.map_or(false, |v| v.protocol >= *min && v.protocol <= *max)
+                version.is_some_and(|v| v.protocol >= *min && v.protocol <= *max)
             }
         }
     }
@@ -151,7 +151,11 @@ impl fmt::Display for InterfaceVersion {
         if self.pre_release == 0 {
             write!(f, "protocol {}", self.protocol)
         } else {
-            write!(f, "protocol {} pre-release {}", self.protocol, self.pre_release)
+            write!(
+                f,
+                "protocol {} pre-release {}",
+                self.protocol, self.pre_release
+            )
         }
     }
 }
@@ -568,10 +572,7 @@ impl SpecDecoderRegistry {
                         // version-not-found outcome.
                         return DecodeOutcome::UnsupportedVersion {
                             version,
-                            message: format!(
-                                "decoder '{}' matched but failed: {}",
-                                entry.name, e
-                            ),
+                            message: format!("decoder '{}' matched but failed: {}", entry.name, e),
                         };
                     }
                 }
@@ -688,9 +689,7 @@ impl SpecDecoderRegistry {
 
     /// Returns `true` if any registered decoder's predicate matches `version`.
     pub fn supports_version(&self, version: Option<InterfaceVersion>) -> bool {
-        self.entries
-            .iter()
-            .any(|e| e.predicate.matches(version))
+        self.entries.iter().any(|e| e.predicate.matches(version))
     }
 }
 
@@ -919,7 +918,10 @@ mod tests {
             version_owned: false,
         };
         let s = meta.summary();
-        assert!(s.contains("AnyVersion"), "summary should note fallback: {s}");
+        assert!(
+            s.contains("AnyVersion"),
+            "summary should note fallback: {s}"
+        );
     }
 
     #[test]
@@ -1168,7 +1170,10 @@ mod tests {
         let outcome = reg.decode(b"", v);
         if let DecodeOutcome::Decoded { section_meta, .. } = outcome {
             assert_eq!(section_meta.interface_version, v);
-            assert!(section_meta.version_owned, "range predicate should own the version");
+            assert!(
+                section_meta.version_owned,
+                "range predicate should own the version"
+            );
             assert_eq!(section_meta.decoder_name, "soroban-v0-protocol-20-23");
         } else {
             panic!("expected Decoded outcome");
@@ -1189,7 +1194,9 @@ mod tests {
 
     #[test]
     fn any_version_decoder_sets_version_owned_false() {
-        let mut reg = SpecDecoderRegistry { entries: Vec::new() };
+        let mut reg = SpecDecoderRegistry {
+            entries: Vec::new(),
+        };
         reg.register(DecoderEntry {
             name: "catch-all",
             predicate: VersionPredicate::AnyVersion,
@@ -1317,7 +1324,9 @@ mod tests {
 
     #[test]
     fn custom_registry_only_handles_registered_version() {
-        let mut reg = SpecDecoderRegistry { entries: Vec::new() };
+        let mut reg = SpecDecoderRegistry {
+            entries: Vec::new(),
+        };
         reg.register(DecoderEntry {
             name: "protocol-99",
             predicate: VersionPredicate::ExactProtocol(99),
@@ -1345,7 +1354,9 @@ mod tests {
 
     #[test]
     fn first_matching_decoder_wins() {
-        let mut reg = SpecDecoderRegistry { entries: Vec::new() };
+        let mut reg = SpecDecoderRegistry {
+            entries: Vec::new(),
+        };
         reg.register(DecoderEntry {
             name: "first",
             predicate: VersionPredicate::ExactProtocol(20),
@@ -1459,7 +1470,9 @@ mod tests {
 
     #[test]
     fn decoder_not_called_for_wrong_version() {
-        let mut reg = SpecDecoderRegistry { entries: Vec::new() };
+        let mut reg = SpecDecoderRegistry {
+            entries: Vec::new(),
+        };
         reg.register(DecoderEntry {
             name: "p20-only",
             predicate: VersionPredicate::ExactProtocol(20),

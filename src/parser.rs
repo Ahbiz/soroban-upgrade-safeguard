@@ -103,6 +103,7 @@ pub struct SorobanMetadata {
 /// An empty `data` slice (a present but empty contractspecv0 section) returns
 /// an empty vector with a warning printed to stderr. This is distinct from a
 /// missing section (which never calls this function at all).
+#[cfg(test)]
 fn decode_spec_entries(data: &[u8]) -> Result<Vec<ScSpecEntry>, Error> {
     if data.is_empty() {
         // A present but empty contractspecv0 section is unusual but valid:
@@ -243,8 +244,7 @@ pub fn extract_metadata_with_registry(
             Payload::CustomSection(section) => match section.name() {
                 "contractspecv0" => {
                     // Buffer for versioned dispatch after env-meta is known.
-                    raw_spec_sections
-                        .push((section.data().to_vec(), section.data_offset() as u64));
+                    raw_spec_sections.push((section.data().to_vec(), section.data_offset() as u64));
                 }
                 "contractenvmetav0" => {
                     let section_index = env_section_index;
@@ -316,10 +316,7 @@ pub fn extract_metadata_with_registry(
                     skipped_bytes,
                 );
             }
-            crate::decoder_registry::DecodeOutcome::UnsupportedVersion {
-                version,
-                message,
-            } => {
+            crate::decoder_registry::DecodeOutcome::UnsupportedVersion { version, message } => {
                 return Err(Error::SectionExtraction {
                     section_name: "contractspecv0".to_string(),
                     section_index,
@@ -327,8 +324,7 @@ pub fn extract_metadata_with_registry(
                     details: message,
                     source: Some(Box::new(Error::UnsupportedDecoderVersion {
                         version_display: version.map(|v| v.to_string()),
-                        message: "no registered decoder matched this interface version"
-                            .to_string(),
+                        message: "no registered decoder matched this interface version".to_string(),
                     })),
                 });
             }
@@ -821,7 +817,9 @@ mod tests {
         wasm.extend(wasm_section(0, spec_body));
 
         // Use an empty registry (no decoders) to force unsupported.
-        let empty_registry = crate::decoder_registry::SpecDecoderRegistry { entries: Vec::new() };
+        let empty_registry = crate::decoder_registry::SpecDecoderRegistry {
+            entries: Vec::new(),
+        };
         let err = extract_metadata_with_registry(&wasm, &empty_registry)
             .expect_err("unsupported version should produce an error");
         assert_eq!(
@@ -834,11 +832,13 @@ mod tests {
     #[test]
     fn extract_metadata_with_registry_custom_decoder_accepted() {
         use crate::decoder_registry::{
-            DecoderEntry, SpecDecoderRegistry, VersionPredicate, decode_spec_v0,
+            decode_spec_v0, DecoderEntry, SpecDecoderRegistry, VersionPredicate,
         };
 
         // Register only a protocol-99 decoder and feed a protocol-99 WASM.
-        let mut reg = SpecDecoderRegistry { entries: Vec::new() };
+        let mut reg = SpecDecoderRegistry {
+            entries: Vec::new(),
+        };
         reg.register(DecoderEntry {
             name: "test-p99",
             predicate: VersionPredicate::ExactProtocol(99),

@@ -83,9 +83,13 @@ pub enum FindingCategory {
     /// schema (e.g. persistent → temporary).
     StorageDurabilityChanged,
     /// A storage declaration's namespace or key-domain prefix changed between
-    /// the old and new schema, redirecting reads and writes to a different
+    /// the old and the new schema, redirecting reads and writes to a different
     /// ledger entry.
     StorageNamespaceChanged,
+    /// A map's key type changed between the old and new contract.
+    MapKeyTypeChanged,
+    /// A map's value type changed between the old and new contract.
+    MapValueTypeChanged,
 }
 
 impl std::str::FromStr for FindingCategory {
@@ -172,6 +176,8 @@ impl FindingCategory {
             FindingCategory::WasmProposalRemoved => "WASM Proposal Removed",
             FindingCategory::StorageDurabilityChanged => "Storage Durability Changed",
             FindingCategory::StorageNamespaceChanged => "Storage Namespace Changed",
+            FindingCategory::MapKeyTypeChanged => "Map Key Type Changed",
+            FindingCategory::MapValueTypeChanged => "Map Value Type Changed",
         }
     }
 
@@ -252,6 +258,8 @@ impl FindingCategory {
             FindingCategory::WasmProposalRemoved => Severity::Info,
             FindingCategory::StorageDurabilityChanged => Severity::Critical,
             FindingCategory::StorageNamespaceChanged => Severity::Critical,
+            FindingCategory::MapKeyTypeChanged => Severity::Critical,
+            FindingCategory::MapValueTypeChanged => Severity::Critical,
         }
     }
 
@@ -467,6 +475,12 @@ impl FindingCategory {
             }
             FindingCategory::StorageNamespaceChanged => {
                 "A storage declaration's namespace or key-domain prefix changed between the old and new schema, redirecting reads and writes to a different ledger entry and orphaning stored data."
+            }
+            FindingCategory::MapKeyTypeChanged => {
+                "A map's key type changed between the old and new contract, making existing entries unreachable and potentially altering canonical iteration order."
+            }
+            FindingCategory::MapValueTypeChanged => {
+                "A map's value type changed between the old and new contract, so entries serialized under the old value type cannot be decoded under the new layout."
             }
         }
     }
@@ -684,6 +698,12 @@ impl FindingCategory {
             FindingCategory::StorageNamespaceChanged => {
                 "Restore the original namespace or perform a data migration that reads existing entries under the old namespace and writes them under the new one before deploying."
             }
+            FindingCategory::MapKeyTypeChanged => {
+                "Restore the original key type, or drain and rewrite the map under the new key domain before deploying so no pre-existing entry becomes unreachable."
+            }
+            FindingCategory::MapValueTypeChanged => {
+                "Restore the original value type, or perform a data migration that reads every existing entry under the old value type and writes it under the new one before deploying."
+            }
         }
     }
 
@@ -760,6 +780,8 @@ impl FindingCategory {
             FindingCategory::WasmProposalRemoved,
             FindingCategory::StorageDurabilityChanged,
             FindingCategory::StorageNamespaceChanged,
+            FindingCategory::MapKeyTypeChanged,
+            FindingCategory::MapValueTypeChanged,
         ]
     }
 

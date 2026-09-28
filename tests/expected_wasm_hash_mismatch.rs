@@ -39,21 +39,12 @@ fn run(args: &[&str]) -> Run {
     }
 }
 
-/// Get the actual SHA-256 hash of a fixture WASM by running a comparison
-/// and extracting it from JSON output.
+/// Get the actual SHA-256 hash of a fixture WASM by hashing the file bytes
+/// directly — the same digest `--expected-wasm-hash` checks against.
 fn get_wasm_sha256(wasm_path: &str) -> String {
-    let output = Command::new(env!("CARGO_BIN_EXE_soroban-upgrade-safeguard"))
-        .args(&[wasm_path, wasm_path, "--format", "json"])
-        .output()
-        .expect("failed to run binary");
-
-    let stdout = String::from_utf8(output.stdout).expect("stdout not utf8");
-    let json: serde_json::Value = serde_json::from_str(&stdout).expect("output must be JSON");
-
-    json["old"]["wasm_sha256"]
-        .as_str()
-        .expect("wasm_sha256 must be present")
-        .to_string()
+    use sha2::{Digest, Sha256};
+    let bytes = std::fs::read(wasm_path).expect("fixture wasm must be readable");
+    hex::encode(Sha256::digest(&bytes))
 }
 
 #[test]
@@ -121,11 +112,11 @@ fn matching_expected_wasm_hash_allows_comparison_to_proceed() {
     );
 
     // Must have performed the comparison (produced findings)
-    let json: serde_json::Value = serde_json::from_str(&run.stdout)
-        .expect("output must be valid JSON when hash matches");
+    let json: serde_json::Value =
+        serde_json::from_str(&run.stdout).expect("output must be valid JSON when hash matches");
 
     assert!(
-        json.get("findings").is_some(),
+        json.get("findings_by_category").is_some(),
         "comparison must have run and produced findings"
     );
 
@@ -134,10 +125,7 @@ fn matching_expected_wasm_hash_allows_comparison_to_proceed() {
         "comparison must have produced a verdict"
     );
 
-    assert_eq!(
-        json["is_safe"], false,
-        "v1->v2 comparison must be unsafe"
-    );
+    assert_eq!(json["is_safe"], false, "v1->v2 comparison must be unsafe");
 }
 
 #[test]
@@ -193,13 +181,10 @@ fn expected_wasm_hash_is_case_insensitive() {
     );
 
     // Comparison should have run successfully
-    let json: serde_json::Value = serde_json::from_str(&run.stdout)
-        .expect("output must be valid JSON");
+    let json: serde_json::Value =
+        serde_json::from_str(&run.stdout).expect("output must be valid JSON");
 
-    assert!(
-        json.get("findings").is_some(),
-        "comparison must have run"
-    );
+    assert!(json.get("findings_by_category").is_some(), "comparison must have run");
 }
 
 #[test]
@@ -321,11 +306,10 @@ fn expected_wasm_hash_fails_before_performing_comparison() {
     // Output should NOT be valid comparison JSON (error occurred before comparison)
     let parse_result = serde_json::from_str::<serde_json::Value>(&run.stdout);
 
-    if parse_result.is_ok() {
-        let json = parse_result.unwrap();
+    if let Ok(json) = parse_result {
         // If it parsed as JSON, it should not have comparison fields
         assert!(
-            json.get("findings").is_none(),
+            json.get("findings_by_category").is_none(),
             "must fail before producing findings, got: {}",
             json
         );
@@ -370,10 +354,10 @@ fn expected_wasm_hash_with_mixed_case_matches() {
         run.stderr
     );
 
-    let json: serde_json::Value = serde_json::from_str(&run.stdout)
-        .expect("comparison should have run");
+    let json: serde_json::Value =
+        serde_json::from_str(&run.stdout).expect("comparison should have run");
 
-    assert!(json.get("findings").is_some());
+    assert!(json.get("findings_by_category").is_some());
 }
 
 #[test]

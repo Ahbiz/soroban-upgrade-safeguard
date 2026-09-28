@@ -28,6 +28,7 @@ pub enum ErrorKind {
     RpcSnapshotConsistency,
     RpcIdMismatch,
     SymlinkRejected,
+    UnsupportedDecoderVersion,
 }
 
 /// The canonical error type for the soroban-upgrade-safeguard library.
@@ -56,6 +57,7 @@ pub enum ErrorKind {
 /// | [`OciFetch`](Error::OciFetch) | Resolving an `oci://` input artifact failed (manifest/blob transport, auth, or media-type selection) |
 /// | [`RpcIdMismatch`](Error::RpcIdMismatch) | A JSON-RPC response's `id` was missing or did not match the request's `id` |
 /// | [`SymlinkRejected`](Error::SymlinkRejected) | A local input path was a symlink while `--no-symlinks` was in effect |
+/// | [`UnsupportedDecoderVersion`](Error::UnsupportedDecoderVersion) | A custom section declared an interface version this build has no decoder for |
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -156,6 +158,15 @@ pub enum Error {
         /// The fully resolved target, when it could be determined.
         resolved: Option<PathBuf>,
     },
+    /// No registered decoder claimed the interface version a custom section
+    /// declared. The section was read, but this build cannot interpret it, so
+    /// the comparison would be a guess rather than a check.
+    UnsupportedDecoderVersion {
+        /// The version the section declared, when it could be rendered.
+        version_display: Option<String>,
+        /// Why no decoder matched.
+        message: String,
+    },
 }
 
 impl Error {
@@ -184,6 +195,7 @@ impl Error {
             Error::RpcSnapshotConsistency { .. } => ErrorKind::RpcSnapshotConsistency,
             Error::RpcIdMismatch { .. } => ErrorKind::RpcIdMismatch,
             Error::SymlinkRejected { .. } => ErrorKind::SymlinkRejected,
+            Error::UnsupportedDecoderVersion { .. } => ErrorKind::UnsupportedDecoderVersion,
         }
     }
 
@@ -394,6 +406,16 @@ impl fmt::Display for Error {
                     path.display()
                 ),
             },
+            Error::UnsupportedDecoderVersion {
+                version_display,
+                message,
+            } => {
+                write!(f, "Unsupported interface version: {message}")?;
+                if let Some(version) = version_display {
+                    write!(f, " (section declared {version})")?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -441,6 +463,7 @@ impl std::error::Error for Error {
             Error::RpcSnapshotConsistency { .. } => None,
             Error::RpcIdMismatch { .. } => None,
             Error::SymlinkRejected { .. } => None,
+            Error::UnsupportedDecoderVersion { .. } => None,
         }
     }
 }
