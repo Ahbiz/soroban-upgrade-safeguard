@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 pub use crate::render::SeverityCounts;
 
 /// The status of a compatibility axis.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum AxisStatus {
     Passed,
@@ -19,7 +19,7 @@ pub enum AxisStatus {
     Failed,
 }
 /// A finding as it appears in the report, augmented with suppression state.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ReportedFinding {
     #[serde(default)]
     pub rule_id: String,
@@ -752,7 +752,7 @@ impl SafetyReport {
 }
 
 /// Track what was analyzed in the report.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct AnalysisScope {
     pub exported_interface: bool,
     pub env_metadata: bool,
@@ -805,7 +805,7 @@ impl AnalysisScope {
 }
 
 /// Whether storage schema analysis was performed.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 pub enum StorageScopeState {
     #[default]
     NotAnalyzed,

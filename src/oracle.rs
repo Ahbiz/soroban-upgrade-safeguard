@@ -70,10 +70,10 @@
 
 use stellar_xdr::curr::{
     ScSpecFunctionInputV0, ScSpecFunctionV0, ScSpecTypeDef, ScSpecTypeMap, ScSpecTypeOption,
-    ScSpecTypeResult, ScSpecTypeTuple, ScSpecTypeUdt, ScSpecTypeVec, ScSpecUdtEnumCaseV0,
-    ScSpecUdtEnumV0, ScSpecUdtErrorEnumCaseV0, ScSpecUdtErrorEnumV0, ScSpecUdtStructFieldV0,
-    ScSpecUdtStructV0, ScSpecUdtUnionCaseTupleV0, ScSpecUdtUnionCaseV0, ScSpecUdtUnionCaseVoidV0,
-    ScSpecUdtUnionV0, StringM, VecM,
+    ScSpecTypeTuple, ScSpecTypeUdt, ScSpecTypeVec, ScSpecUdtEnumCaseV0, ScSpecUdtEnumV0,
+    ScSpecUdtErrorEnumCaseV0, ScSpecUdtErrorEnumV0, ScSpecUdtStructFieldV0, ScSpecUdtStructV0,
+    ScSpecUdtUnionCaseTupleV0, ScSpecUdtUnionCaseV0, ScSpecUdtUnionCaseVoidV0, ScSpecUdtUnionV0,
+    StringM, VecM,
 };
 
 use crate::mapper::type_to_string;
@@ -835,11 +835,18 @@ mod tests {
 
     #[test]
     fn compare_spec_covers_enum_discriminants() {
-        let spec = spec_with_enum("Status", vec![("Active", 0), ("Inactive", 1), ("Banned", 2)]);
+        let spec = spec_with_enum(
+            "Status",
+            vec![("Active", 0), ("Inactive", 1), ("Banned", 2)],
+        );
         let report = compare_spec(&spec);
         // No type-path comparisons for enums (they have no field types)
         assert_eq!(report.comparisons, 0);
-        assert!(report.is_clean(), "unexpected mismatches: {:?}", report.discriminant_mismatches);
+        assert!(
+            report.is_clean(),
+            "unexpected mismatches: {:?}",
+            report.discriminant_mismatches
+        );
     }
 
     #[test]

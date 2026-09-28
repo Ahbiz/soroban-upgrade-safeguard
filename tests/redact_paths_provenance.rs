@@ -183,9 +183,7 @@ fn without_redact_paths_symlink_target_is_present() {
 
     // It should contain the actual resolved path
     let actual_target = std::fs::canonicalize(wasm("v1.wasm")).unwrap();
-    let normalized_actual = crate::loader::normalize_path_display(
-        &actual_target.to_string_lossy()
-    );
+    let normalized_actual = crate::loader::normalize_path_display(&actual_target.to_string_lossy());
 
     assert_eq!(
         resolved, normalized_actual,
@@ -266,14 +264,12 @@ fn redact_paths_preserves_interface_hashes() {
 
     // Interface hashes must be identical
     assert_eq!(
-        redacted_json["old"]["interface_hash"],
-        unredacted_json["old"]["interface_hash"],
+        redacted_json["old"]["interface_hash"], unredacted_json["old"]["interface_hash"],
         "interface hash must not be affected by --redact-paths"
     );
 
     assert_eq!(
-        redacted_json["new"]["interface_hash"],
-        unredacted_json["new"]["interface_hash"],
+        redacted_json["new"]["interface_hash"], unredacted_json["new"]["interface_hash"],
         "interface hash must not be affected by --redact-paths"
     );
 }
@@ -307,14 +303,12 @@ fn redact_paths_preserves_wasm_sha256() {
 
     // SHA-256 hashes must be identical
     assert_eq!(
-        redacted_json["old"]["wasm_sha256"],
-        unredacted_json["old"]["wasm_sha256"],
+        redacted_json["old"]["wasm_sha256"], unredacted_json["old"]["wasm_sha256"],
         "WASM SHA-256 must not be affected by --redact-paths"
     );
 
     assert_eq!(
-        redacted_json["new"]["wasm_sha256"],
-        unredacted_json["new"]["wasm_sha256"],
+        redacted_json["new"]["wasm_sha256"], unredacted_json["new"]["wasm_sha256"],
         "WASM SHA-256 must not be affected by --redact-paths"
     );
 }
@@ -348,22 +342,19 @@ fn redact_paths_preserves_findings() {
 
     // Findings must be identical
     assert_eq!(
-        redacted_json["findings"],
-        unredacted_json["findings"],
+        redacted_json["findings"], unredacted_json["findings"],
         "findings must not be affected by --redact-paths"
     );
 
     // Counts must be identical
     assert_eq!(
-        redacted_json["counts"],
-        unredacted_json["counts"],
+        redacted_json["counts"], unredacted_json["counts"],
         "finding counts must not be affected by --redact-paths"
     );
 
     // Verdict must be identical
     assert_eq!(
-        redacted_json["is_safe"],
-        unredacted_json["is_safe"],
+        redacted_json["is_safe"], unredacted_json["is_safe"],
         "safety verdict must not be affected by --redact-paths"
     );
 }

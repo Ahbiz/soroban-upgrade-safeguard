@@ -67,7 +67,7 @@ use crate::diff::{CompatibilityAxis, Severity};
 use crate::report::ReportedFinding;
 
 /// Which finding count a budget entry evaluates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
 pub enum BudgetMetric {
@@ -303,7 +303,7 @@ fn is_known_rule_id(rule_id: &str) -> bool {
 }
 
 /// A single budget entry exceeded by the findings it claimed.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct BudgetViolation {
     /// Stable label for the entry's scope, e.g. `"rule:enum_case_added"`.
     pub scope: String,

@@ -63,17 +63,15 @@ fn run_manifest(manifest: &Path, extra: &[&str]) -> Run {
 fn explain_manifest_exits_without_comparing() {
     let dir = temp_dir("explain-no-compare");
     // Do NOT stage WASM files - resolution must not load them
-    
-    let manifest_content = format!(
-        r#"
+
+    let manifest_content = r#"
 [[pairs]]
 old = "missing_old.wasm"
 new = "missing_new.wasm"
 name = "test_pair"
-"#
-    );
+"#;
 
-    let manifest = write_file(&dir, "manifest.toml", &manifest_content);
+    let manifest = write_file(&dir, "manifest.toml", manifest_content);
     let run = run_manifest(&manifest, &["--explain-manifest"]);
 
     assert_eq!(
@@ -136,7 +134,7 @@ new = "v2.wasm"
 name = "contract_a"
 strict = false
 "#;
-    let manifest = write_file(&dir, "manifest.toml", &root_content);
+    let manifest = write_file(&dir, "manifest.toml", root_content);
 
     let run = run_manifest(&manifest, &["--explain-manifest"]);
 
@@ -209,7 +207,7 @@ new = "v2.wasm"
 name = "pair_with_override"
 strict = false
 "#;
-    let manifest = write_file(&dir, "root.toml", &root);
+    let manifest = write_file(&dir, "root.toml", root);
 
     let run = run_manifest(&manifest, &["--explain-manifest"]);
 
@@ -262,7 +260,7 @@ old = "v2.wasm"
 new = "v3.wasm"
 name = "third_contract"
 "#;
-    let manifest = write_file(&dir, "manifest.toml", &manifest_content);
+    let manifest = write_file(&dir, "manifest.toml", manifest_content);
 
     let run = run_manifest(&manifest, &["--explain-manifest"]);
 
@@ -310,7 +308,7 @@ old = "v1.wasm"
 new = "v2.wasm"
 name = "real_contract"
 "#;
-    let manifest = write_file(&dir, "manifest.toml", &manifest_content);
+    let manifest = write_file(&dir, "manifest.toml", manifest_content);
 
     let run = run_manifest(&manifest, &["--explain-manifest"]);
 
@@ -361,7 +359,7 @@ fn explain_manifest_with_json_manifest_format() {
         }
     ]
 }"#;
-    let manifest = write_file(&dir, "manifest.json", &manifest_content);
+    let manifest = write_file(&dir, "manifest.json", manifest_content);
 
     let run = run_manifest(&manifest, &["--explain-manifest"]);
 
@@ -407,7 +405,7 @@ new = "v3.wasm"
 name = "overrides_strict"
 strict = true
 "#;
-    let manifest = write_file(&dir, "manifest.toml", &manifest_content);
+    let manifest = write_file(&dir, "manifest.toml", manifest_content);
 
     let run = run_manifest(&manifest, &["--explain-manifest"]);
 

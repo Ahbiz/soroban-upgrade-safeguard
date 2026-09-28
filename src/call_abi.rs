@@ -15,7 +15,7 @@ use stellar_xdr::curr::{ScSpecTypeDef, ScSpecUdtUnionCaseV0};
 use crate::spec::ContractSpec;
 
 /// The consumer/provider pairing being evaluated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CallDirection {
     OldClientToNewContract,
@@ -23,7 +23,7 @@ pub enum CallDirection {
 }
 
 /// One concrete Soroban value-flow incompatibility.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CallAbiBreak {
     pub function: String,
     pub path: String,
@@ -31,7 +31,7 @@ pub struct CallAbiBreak {
 }
 
 /// Compatibility for one consumer-to-provider direction.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct DirectionalCallVerdict {
     pub direction: CallDirection,
     pub compatible: bool,
@@ -49,7 +49,7 @@ impl DirectionalCallVerdict {
 }
 
 /// Both directional call-ABI conclusions for an upgrade.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CallAbiCompatibility {
     pub old_client_to_new_contract: DirectionalCallVerdict,
     pub new_client_to_old_contract: DirectionalCallVerdict,
