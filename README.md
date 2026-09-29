@@ -1511,6 +1511,7 @@ More detailed guides live in the [docs](docs/) folder. See the [Documentation In
 - [Which subcommand do I want?](docs/subcommand-guide.md): a task-oriented guide mapping common goals to the right subcommand.
 - [Choosing an Input Source](docs/choosing-an-input-source.md): comparison of local file, stdin, RPC, HTTPS, and OCI input sources and when to use each.
 - [Documentation](docs/documentation.md): full explanation of how the analysis pipeline works, severity levels, cascading layout breaks, and CI integration.
+- [Architecture Guide](docs/safeguard_architecture.md): internal design, module dependencies, and pipeline execution flow of the analysis engine.
 - [Finding Category Reference](docs/finding-categories.md): every category emitted by the tool, with severity, trigger, and remediation guidance — the exact strings to use in suppression rules.
 - [Lint Rules Reference](docs/lint_rules_reference.md): reference for rules applied by the lint subcommand to validate single contract specs.
 - [Capability Reference](docs/capability-reference.md): Soroban protocol capabilities used to classify host import changes.
