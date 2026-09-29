@@ -1517,7 +1517,7 @@ More detailed guides live in the [docs](docs/) folder. See the [Documentation In
 - [Contributing](docs/contributing.md): development setup, project structure, testing, and how to add new detection rules.
 - [Signed Attestations](docs/attestations.md): DSSE signing, the in-toto predicate, offline verification, and security guidance.
 - [RPC Security Checklist](docs/rpc-security-checklist.md): operational checklist for endpoint trust, HTTPS, expected-hash pinning, credentials, and report retention when fetching a baseline over RPC.
-- [Remote HTTPS Inputs](docs/remote-https-inputs.md): digest-pinned `https://` inputs, fetch limits, caching, and error messages.
+- [Remote HTTPS Inputs](docs/remote-https-inputs.md): fetching WASM and spec inputs over HTTPS with digest verification, fetch limits, and caching.
 - [Environment Variables](docs/environment-variables.md): every environment variable the CLI reads, its precedence against the equivalent flag, and how to relocate caches in a sandboxed or ephemeral environment.
 - [Storage Schema Cookbook](docs/storage-schema-cookbook.md): worked examples for declaring storage schemas — common key enums, nested values, optional fields, and partial coverage.
 - [Lineage Tracking Walkthrough](docs/lineage-walkthrough.md): a worked example of recording historical versions, validating a candidate against them, retiring versions, and capping the number of live versions with `--lineage-store`.
