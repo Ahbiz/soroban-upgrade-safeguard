@@ -1511,12 +1511,15 @@ More detailed guides live in the [docs](docs/) folder. See the [Documentation In
 - [Which subcommand do I want?](docs/subcommand-guide.md): a task-oriented guide mapping common goals to the right subcommand.
 - [Choosing an Input Source](docs/choosing-an-input-source.md): comparison of local file, stdin, RPC, HTTPS, and OCI input sources and when to use each.
 - [Documentation](docs/documentation.md): full explanation of how the analysis pipeline works, severity levels, cascading layout breaks, and CI integration.
+- [Architecture Guide](docs/safeguard_architecture.md): internal design, module dependencies, and pipeline execution flow of the analysis engine.
 - [Finding Category Reference](docs/finding-categories.md): every category emitted by the tool, with severity, trigger, and remediation guidance — the exact strings to use in suppression rules.
+- [Lint Rules Reference](docs/lint_rules_reference.md): reference for rules applied by the lint subcommand to validate single contract specs.
+- [Capability Reference](docs/capability-reference.md): Soroban protocol capabilities used to classify host import changes.
 - [Batch Manifests](docs/batch_manifests.md): the manifest schema, composing manifests with `include`, shared `[defaults]`, per-pair overrides, precedence, and resolution provenance.
 - [Contributing](docs/contributing.md): development setup, project structure, testing, and how to add new detection rules.
 - [Signed Attestations](docs/attestations.md): DSSE signing, the in-toto predicate, offline verification, and security guidance.
 - [RPC Security Checklist](docs/rpc-security-checklist.md): operational checklist for endpoint trust, HTTPS, expected-hash pinning, credentials, and report retention when fetching a baseline over RPC.
-- [Remote HTTPS Inputs](docs/remote-https-inputs.md): digest-pinned `https://` inputs, fetch limits, caching, and error messages.
+- [Remote HTTPS Inputs](docs/remote-https-inputs.md): fetching WASM and spec inputs over HTTPS with digest verification, fetch limits, and caching.
 - [Environment Variables](docs/environment-variables.md): every environment variable the CLI reads, its precedence against the equivalent flag, and how to relocate caches in a sandboxed or ephemeral environment.
 - [Storage Schema Cookbook](docs/storage-schema-cookbook.md): worked examples for declaring storage schemas — common key enums, nested values, optional fields, and partial coverage.
 - [Lineage Tracking Walkthrough](docs/lineage-walkthrough.md): a worked example of recording historical versions, validating a candidate against them, retiring versions, and capping the number of live versions with `--lineage-store`.
