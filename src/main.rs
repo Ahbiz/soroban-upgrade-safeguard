@@ -3129,6 +3129,8 @@ fn synthesize_error_report(
         complexity_new: None,
         complexity_delta: None,
         complexity_violations: Vec::new(),
+        manifest_verification: None,
+        manifest_gates_safety: false,
     }
 }
 
@@ -3561,6 +3563,8 @@ fn gap_to_result(gap: &GapContract, args: &Args) -> BatchResult {
         complexity_new: None,
         complexity_delta: None,
         complexity_violations: Vec::new(),
+        manifest_verification: None,
+        manifest_gates_safety: false,
     };
     BatchResult::Error {
         id: name.clone(),

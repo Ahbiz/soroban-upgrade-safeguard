@@ -143,6 +143,14 @@ pub struct Args {
     /// schema, precedence, and inheritance rules.
     #[arg(long, value_name = "NAME")]
     pub profile: Option<String>,
+
+    /// Path to a reproducible-build manifest (TOML or JSON) recording the
+    /// expected source revision, toolchain, target, features, profile, and
+    /// artifact digests. When provided, embedded contract metadata and the
+    /// actual artifact hash are compared against the manifest and any
+    /// mismatches are reported as provenance findings.
+    #[arg(long, value_name = "PATH")]
+    pub build_manifest: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -206,6 +214,12 @@ pub struct FileConfig {
     pub migrations: Vec<crate::contract_migration::MigrationDeclaration>,
     #[serde(default, rename = "budget")]
     pub raw_budget: Vec<crate::budget::BudgetEntryFile>,
+
+    /// Optional reproducible-build manifest path, relative to this config
+    /// file. See [`crate::manifest`] for the schema and validation
+    /// rules.
+    #[serde(default)]
+    pub build_manifest: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -238,6 +252,11 @@ pub struct ResolvedConfig {
     /// in the config file. Empty when no config file was loaded or no tables
     /// were declared.
     pub complexity_budget: crate::wasm_complexity::ComplexityBudgetConfig,
+    /// Resolved path to the reproducible-build manifest, if any. Validation
+    /// and comparison against embedded metadata happen in
+    /// [`crate::build_manifest`], independent of interface compatibility
+    /// gating unless policy explicitly enables it.
+    pub build_manifest: Option<PathBuf>,
 }
 
 impl ResolvedConfig {
@@ -522,6 +541,20 @@ impl ResolvedConfig {
                     crate::wasm_complexity::ComplexityBudgetConfig::default()
                 });
 
+        // Reproducible-build manifest path resolution. CLI > env > config file.
+        // Relative paths from the config file are anchored on the config's
+        // directory so a checked-in config keeps working from any cwd.
+        let build_manifest = args
+            .build_manifest
+            .clone()
+            .or_else(|| env_path("SAFEGUARD_BUILD_MANIFEST"))
+            .or_else(|| {
+                file_config
+                    .as_ref()
+                    .and_then(|fc| fc.build_manifest.clone())
+                    .map(|p| resolve_path(base_dir, p))
+            });
+
         Ok(Self {
             wasm_paths,
             contract_id,
@@ -544,6 +577,7 @@ impl ResolvedConfig {
             gating,
             profile: resolved_profile,
             complexity_budget,
+            build_manifest,
         })
     }
 
