@@ -40,6 +40,11 @@ pub mod category;
 mod category;
 
 #[cfg(feature = "unstable")]
+pub mod classification;
+#[cfg(not(feature = "unstable"))]
+pub(crate) mod classification;
+
+#[cfg(feature = "unstable")]
 pub mod color;
 #[cfg(not(feature = "unstable"))]
 mod color;
@@ -48,6 +53,11 @@ mod color;
 pub mod config;
 #[cfg(not(feature = "unstable"))]
 mod config;
+
+#[cfg(feature = "unstable")]
+pub mod config_schema;
+#[cfg(not(feature = "unstable"))]
+mod config_schema;
 
 #[cfg(feature = "unstable")]
 pub mod decoder_registry;
@@ -117,11 +127,6 @@ pub mod contract_migration;
 mod contract_migration;
 
 #[cfg(feature = "unstable")]
-pub mod metadata_cache;
-#[cfg(not(feature = "unstable"))]
-mod metadata_cache;
-
-#[cfg(feature = "unstable")]
 pub mod migration;
 #[cfg(not(feature = "unstable"))]
 mod migration;
@@ -130,11 +135,6 @@ mod migration;
 pub mod oci;
 #[cfg(not(feature = "unstable"))]
 mod oci;
-#[cfg(feature = "unstable")]
-pub mod oracle;
-#[cfg(not(feature = "unstable"))]
-mod oracle;
-
 #[cfg(feature = "unstable")]
 pub mod oracle;
 #[cfg(not(feature = "unstable"))]
@@ -248,6 +248,13 @@ pub use crate::attestation::{
 };
 pub use crate::call_abi::{
     CallAbiBreak, CallAbiCompatibility, CallDirection, DirectionalCallVerdict,
+};
+pub use crate::config_schema::{
+    config_schema, config_schema_value, generate_config_completion, manifest_schema,
+    manifest_schema_value, validate_batch_manifest, validate_config_file,
+    validate_safeguard_config, BatchManifestDocument, ConfigDiagnostic, ConfigEditorCatalog,
+    ConfigValidationResult, EditorCompletionItem, EditorHoverMetadata, SafeguardConfigDocument,
+    CONFIG_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION,
 };
 pub use crate::diff::{Finding, Severity};
 pub use crate::lineage::{

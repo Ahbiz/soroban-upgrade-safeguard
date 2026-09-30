@@ -138,6 +138,9 @@ pub struct RawManifest {
     /// Only version 1 is currently supported.
     #[serde(default = "default_manifest_version")]
     pub version: u32,
+    /// Schema reference for editor autocompletion and hover metadata.
+    #[serde(default, rename = "$schema")]
+    pub schema: Option<String>,
     /// Other manifest files to compose in, depth-first, in order.
     #[serde(default)]
     pub include: Vec<PathBuf>,
@@ -160,6 +163,7 @@ impl Default for RawManifest {
     fn default() -> Self {
         Self {
             version: 1,
+            schema: None,
             include: Vec::new(),
             defaults: RawDefaults::default(),
             pairs: Vec::new(),
@@ -1068,11 +1072,35 @@ fn parse_file(path: &Path) -> Result<RawManifest> {
         || content.trim_start().starts_with(['{', '[']);
 
     let toml_error = match toml::from_str::<RawManifest>(content) {
-        Ok(manifest) => return Ok(manifest),
+        Ok(manifest) => {
+            if manifest.version == 1 {
+                if let Err(diags) = crate::config_schema::validate_batch_manifest(content, path) {
+                    let formatted = diags
+                        .iter()
+                        .map(|d| d.to_string())
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    bail!("Invalid manifest '{}':\n{}", path.display(), formatted);
+                }
+            }
+            return Ok(manifest);
+        }
         Err(e) => e.to_string(),
     };
     let json_error = match serde_json::from_str::<RawManifest>(content) {
-        Ok(manifest) => return Ok(manifest),
+        Ok(manifest) => {
+            if manifest.version == 1 {
+                if let Err(diags) = crate::config_schema::validate_batch_manifest(content, path) {
+                    let formatted = diags
+                        .iter()
+                        .map(|d| d.to_string())
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    bail!("Invalid manifest '{}':\n{}", path.display(), formatted);
+                }
+            }
+            return Ok(manifest);
+        }
         Err(e) => format!("{e}"),
     };
 
