@@ -356,3 +356,39 @@ fn preflight_cli_subcommand_fails_clearly_when_rpc_header_env_var_is_unset() {
         "error must state the variable is unset, got: {stdout}"
     );
 }
+
+/// `--rpc-header` expects `NAME=ENV_VAR`. A value missing the `=ENV_VAR`
+/// portion must be rejected with a clear message, without ever contacting
+/// the (bogus, unreachable) RPC endpoint.
+#[test]
+fn preflight_cli_subcommand_fails_clearly_when_rpc_header_is_malformed() {
+    let output = Command::new(env!("CARGO_BIN_EXE_soroban-upgrade-safeguard"))
+        .args([
+            "preflight",
+            "--rpc-url",
+            "http://127.0.0.1:1",
+            "--rpc-header",
+            "X-Api-Key-Without-Env-Var",
+        ])
+        .output()
+        .expect("failed to run binary");
+
+    assert_ne!(
+        output.status.code(),
+        Some(0),
+        "a malformed --rpc-header value must not succeed"
+    );
+    let stderr = String::from_utf8(output.stderr).expect("stderr not UTF-8");
+    assert!(
+        stderr.contains("Invalid --rpc-header"),
+        "error must flag the malformed --rpc-header value, got: {stderr}"
+    );
+    assert!(
+        stderr.contains("NAME=ENV_VAR"),
+        "error must state the expected NAME=ENV_VAR format, got: {stderr}"
+    );
+    assert!(
+        stderr.contains("X-Api-Key-Without-Env-Var"),
+        "error must echo back the offending value, got: {stderr}"
+    );
+}
