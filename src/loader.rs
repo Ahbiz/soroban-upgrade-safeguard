@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::io::Read;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use ring::digest::{digest, SHA256};
@@ -13,6 +14,7 @@ use stellar_xdr::curr::{
 use wasmparser::Parser;
 
 use crate::error::Error;
+use crate::manifest::{BuildManifest, ManifestFormat, ManifestMismatch, ManifestVerification};
 use crate::oci::{self, OciArtifact, OciArtifactKind, OciFetchConfig, OciReference};
 use crate::remote::{self, FetchedArtifact, RemoteFetchConfig, RemoteRef};
 use crate::rpc::RpcClientConfig;
@@ -43,6 +45,298 @@ use crate::rpc::RpcClientConfig;
 /// *means* on either platform — only how it prints.
 pub fn normalize_path_display(path: &str) -> String {
     path.replace('\\', "/")
+}
+
+/// Embedded contract environment metadata extracted from a WASM module's
+/// custom sections, used to compare against a reproducible-build manifest.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct EmbeddedContractMetadata {
+    /// Source revision (e.g. git commit SHA) recorded in the WASM, if any.
+    pub source_revision: Option<String>,
+    /// Rust compiler version recorded in the WASM, if any.
+    pub rust_version: Option<String>,
+    /// Soroban SDK version recorded in the WASM, if any.
+    pub sdk_version: Option<String>,
+    /// Target triple recorded in the WASM, if any.
+    pub target: Option<String>,
+    /// Feature flags recorded in the WASM, if any.
+    pub features: Option<Vec<String>>,
+    /// Build profile (e.g. `release`, `debug`) recorded in the WASM, if any.
+    pub profile: Option<String>,
+}
+
+/// Result of verifying a WASM module against a reproducible-build manifest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ManifestCheckResult {
+    /// Fields that matched between manifest and embedded metadata/artifact.
+    pub verified: BTreeMap<String, String>,
+    /// Fields that could not be verified (missing on one side or the other).
+    pub unverified: BTreeMap<String, String>,
+    /// Fields that were present on both sides but disagreed.
+    pub mismatches: Vec<ManifestMismatch>,
+}
+
+impl ManifestCheckResult {
+    /// Returns `true` when no field mismatched.
+    pub fn is_clean(&self) -> bool {
+        self.mismatches.is_empty()
+    }
+}
+
+/// Extract embedded contract environment metadata from a WASM module's
+/// custom sections. Recognized sections are `contractenvmetav0` (Soroban
+/// environment metadata) and `contractmetav0` (contract metadata). Unknown
+/// or absent sections yield `None` fields rather than an error — metadata
+/// is supplementary, not required.
+pub fn extract_embedded_metadata(bytes: &[u8]) -> EmbeddedContractMetadata {
+    let mut meta = EmbeddedContractMetadata::default();
+    let parser = Parser::new(0);
+    for payload in parser.parse_all(bytes) {
+        let Ok(payload) = payload else { continue };
+        if let wasmparser::Payload::CustomSection(section) = payload {
+            let name = section.name();
+            if name == "contractenvmetav0" || name == "contractmetav0" {
+                parse_metadata_section(section.data(), &mut meta);
+            }
+        }
+    }
+    meta
+}
+
+/// Parse a `contractenvmetav0`/`contractmetav0` custom section body into
+/// `meta`. The section is a sequence of length-prefixed key/value string
+/// pairs; malformed entries are skipped rather than failing the whole parse.
+fn parse_metadata_section(data: &[u8], meta: &mut EmbeddedContractMetadata) {
+    let mut cursor = 0usize;
+    while cursor < data.len() {
+        let Some((key, next)) = read_len_prefixed(data, cursor) else {
+            break;
+        };
+        cursor = next;
+        let Some((value, next)) = read_len_prefixed(data, cursor) else {
+            break;
+        };
+        cursor = next;
+        match key {
+            "source_revision" | "git_revision" | "revision" => {
+                meta.source_revision = Some(value.to_string())
+            }
+            "rust_version" | "rustc" => meta.rust_version = Some(value.to_string()),
+            "sdk_version" | "soroban_sdk" => meta.sdk_version = Some(value.to_string()),
+            "target" | "target_triple" => meta.target = Some(value.to_string()),
+            "features" => {
+                meta.features = Some(
+                    value
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect(),
+                )
+            }
+            "profile" | "build_profile" => meta.profile = Some(value.to_string()),
+            _ => {}
+        }
+    }
+}
+
+/// Read a length-prefixed UTF-8 string from `data` starting at `offset`.
+/// Returns the decoded string and the offset just past it, or `None` if the
+/// data is truncated or not valid UTF-8.
+fn read_len_prefixed(data: &[u8], offset: usize) -> Option<(&str, usize)> {
+    if offset + 4 > data.len() {
+        return None;
+    }
+    let len = u32::from_le_bytes(data[offset..offset + 4].try_into().ok()?) as usize;
+    let start = offset + 4;
+    let end = start.checked_add(len)?;
+    if end > data.len() {
+        return None;
+    }
+    let s = std::str::from_utf8(&data[start..end]).ok()?;
+    Some((s, end))
+}
+
+/// Verify a WASM module against a reproducible-build manifest, comparing
+/// manifest values to embedded metadata and the actual artifact digest.
+///
+/// This is deliberately independent from interface-compatibility gating:
+/// callers decide whether a mismatch should block a release. The result
+/// records verified and unverified fields separately so a report can show
+/// exactly what provenance was confirmed versus merely claimed.
+pub fn verify_against_manifest(
+    module: &WasmModule,
+    manifest: &BuildManifest,
+) -> ManifestCheckResult {
+    let embedded = extract_embedded_metadata(&module.bytes);
+    let mut verified = BTreeMap::new();
+    let mut unverified = BTreeMap::new();
+    let mut mismatches = Vec::new();
+
+    // Artifact digest: the manifest's expected digest must match the actual
+    // SHA-256 of the bytes we loaded. This is the strongest check available
+    // and does not depend on embedded metadata at all.
+    match &manifest.artifact_sha256 {
+        Some(expected) => {
+            if expected.eq_ignore_ascii_case(&module.sha256) {
+                verified.insert("artifact_sha256".to_string(), module.sha256.clone());
+            } else {
+                mismatches.push(ManifestMismatch {
+                    field: "artifact_sha256".to_string(),
+                    expected: expected.clone(),
+                    actual: module.sha256.clone(),
+                });
+            }
+        }
+        None => {
+            unverified.insert(
+                "artifact_sha256".to_string(),
+                module.sha256.clone(),
+            );
+        }
+    }
+
+    compare_opt(
+        "source_revision",
+        manifest.source_revision.as_deref(),
+        embedded.source_revision.as_deref(),
+        &mut verified,
+        &mut unverified,
+        &mut mismatches,
+    );
+    compare_opt(
+        "rust_version",
+        manifest.rust_version.as_deref(),
+        embedded.rust_version.as_deref(),
+        &mut verified,
+        &mut unverified,
+        &mut mismatches,
+    );
+    compare_opt(
+        "sdk_version",
+        manifest.sdk_version.as_deref(),
+        embedded.sdk_version.as_deref(),
+        &mut verified,
+        &mut unverified,
+        &mut mismatches,
+    );
+    compare_opt(
+        "target",
+        manifest.target.as_deref(),
+        embedded.target.as_deref(),
+        &mut verified,
+        &mut unverified,
+        &mut mismatches,
+    );
+    compare_opt(
+        "profile",
+        manifest.profile.as_deref(),
+        embedded.profile.as_deref(),
+        &mut verified,
+        &mut unverified,
+        &mut mismatches,
+    );
+
+    match (&manifest.features, &embedded.features) {
+        (Some(expected), Some(actual)) => {
+            let mut a = expected.clone();
+            let mut b = actual.clone();
+            a.sort();
+            b.sort();
+            if a == b {
+                verified.insert("features".to_string(), a.join(","));
+            } else {
+                mismatches.push(ManifestMismatch {
+                    field: "features".to_string(),
+                    expected: a.join(","),
+                    actual: b.join(","),
+                });
+            }
+        }
+        (Some(expected), None) => {
+            unverified.insert("features".to_string(), expected.join(","));
+        }
+        (None, Some(actual)) => {
+            unverified.insert("features".to_string(), actual.join(","));
+        }
+        (None, None) => {}
+    }
+
+    ManifestCheckResult {
+        verified,
+        unverified,
+        mismatches,
+    }
+}
+
+/// Compare an optional manifest value against an optional embedded value,
+/// recording the outcome in the appropriate bucket.
+fn compare_opt(
+    field: &str,
+    expected: Option<&str>,
+    actual: Option<&str>,
+    verified: &mut BTreeMap<String, String>,
+    unverified: &mut BTreeMap<String, String>,
+    mismatches: &mut Vec<ManifestMismatch>,
+) {
+    match (expected, actual) {
+        (Some(e), Some(a)) => {
+            if e == a {
+                verified.insert(field.to_string(), a.to_string());
+            } else {
+                mismatches.push(ManifestMismatch {
+                    field: field.to_string(),
+                    expected: e.to_string(),
+                    actual: a.to_string(),
+                });
+            }
+        }
+        (Some(e), None) => {
+            unverified.insert(field.to_string(), e.to_string());
+        }
+        (None, Some(a)) => {
+            unverified.insert(field.to_string(), a.to_string());
+        }
+        (None, None) => {}
+    }
+}
+
+/// Load a build manifest from a file path, auto-detecting TOML vs JSON by
+/// extension (`.json` → JSON, otherwise TOML). Validation is strict: unknown
+/// fields and missing required fields are errors.
+pub fn load_build_manifest(path: &Path) -> Result<BuildManifest, Error> {
+    let contents = std::fs::read_to_string(path).map_err(|e| Error::FileAccess {
+        path: path.to_path_buf(),
+        details: format!("Failed to read build manifest: {}", path.display()),
+        source: Some(Box::new(e)),
+    })?;
+    let format = match path.extension().and_then(|e| e.to_str()) {
+        Some("json") => ManifestFormat::Json,
+        _ => ManifestFormat::Toml,
+    };
+    BuildManifest::parse(&contents, format)
+}
+
+/// Load a build manifest from raw bytes, using the given format.
+pub fn load_build_manifest_from_bytes(
+    bytes: &[u8],
+    format: ManifestFormat,
+) -> Result<BuildManifest, Error> {
+    let contents = std::str::from_utf8(bytes).map_err(|e| Error::InvalidInput {
+        details: format!("Build manifest is not valid UTF-8: {}", e),
+    })?;
+    BuildManifest::parse(contents, format)
+}
+
+/// Verify a WASM module against a manifest and return both the check result
+/// and the manifest that was used, for inclusion in reports.
+pub fn verify_module_with_manifest(
+    module: &WasmModule,
+    manifest: &BuildManifest,
+) -> ManifestVerification {
+    ManifestVerification {
+        manifest: manifest.clone(),
+        result: verify_against_manifest(module, manifest),
+    }
 }
 
 /// Symlink resolution recorded for a local input: what was asked for, and
